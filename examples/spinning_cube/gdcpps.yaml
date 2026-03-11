@@ -1,0 +1,24 @@
+project:
+  name: spinning_cube
+  module_name: spinning_cube
+  godot_version: 4.5.1
+
+profiles:
+  base: desktop-default
+  web: web-small
+  ios: mobile-default
+  android: mobile-default
+
+features:
+  enable: []
+  disable:
+    - gdscript
+    - advanced_gui
+
+platforms:
+  web:
+    disable:
+      - physics_2d
+      - physics_3d
+      - navigation_2d
+      - navigation_3d

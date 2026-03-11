@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+
+# Local environment
+.venv/
+venv/
+
+# SCons
+.sconsign.dblite
+.sconsign5.dblite
+
+# Generated scaffold state
+.gdcpps/generated/
+.gdcpps/state/
+
+# Generated project/runtime state
+project/.godot/
+project/bin/
+
+# Scaffolded project artifacts
+build/
+deps/
+artifacts/
+
+# Godot and tool outputs inside examples or future fixture projects
+examples/*/.gdcpps/generated/
+examples/*/.gdcpps/state/
+examples/*/.sconsign.dblite
+examples/*/build/
+examples/*/deps/
+examples/*/artifacts/
+examples/*/project/.godot/
+examples/*/project/bin/

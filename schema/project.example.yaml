@@ -1,0 +1,27 @@
+project:
+  name: samplegame
+  module_name: samplegame
+  godot_version: 4.5.1
+
+profiles:
+  base: desktop-default
+  web: web-small
+  ios: mobile-default
+  android: mobile-default
+
+features:
+  enable: []
+  disable:
+    - gdscript
+    - advanced_gui
+
+platforms:
+  windows:
+    enable:
+      - physics_3d
+  web:
+    disable:
+      - physics_2d
+      - physics_3d
+      - navigation_2d
+      - navigation_3d

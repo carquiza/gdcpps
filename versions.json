@@ -1,0 +1,12 @@
+{
+  "godot": {
+    "version": "4.5.1",
+    "ref": "4.5.1-stable",
+    "url": "https://github.com/godotengine/godot.git"
+  },
+  "godot_cpp": {
+    "version": "4.5",
+    "ref": "4.5",
+    "url": "https://github.com/godotengine/godot-cpp.git"
+  }
+}
