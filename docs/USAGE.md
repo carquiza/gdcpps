@@ -154,6 +154,38 @@ platforms:
       - navigation_3d
 ```
 
+## Build Hooks
+
+`gdcpps` now supports a first manifest-driven hook surface for bringing in shared native code without editing generated files.
+
+Implemented fields:
+
+```yaml
+build:
+  cpp_standard: c++20
+  shared:
+    extra_include_dirs: []
+    extra_source_globs: []
+  debug:
+    extra_include_dirs: []
+    extra_source_globs: []
+  module:
+    extra_include_dirs: []
+    extra_source_globs: []
+```
+
+These fields are applied to the generated debug GDExtension build glue and the generated module build glue.
+
+The broader extension model is documented in `docs/HOOKS.md`.
+
+Typical use cases:
+
+- monorepo projects with shared native code outside `game/src`
+- shared simulation or engine code compiled into both debug and release builds
+- project-specific include roots and C++ standard settings
+
+Future expansions such as defines, library dirs, link flags, and optional Python hook files are still planned.
+
 ## Feature Profiles
 
 ### `desktop-default`

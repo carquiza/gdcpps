@@ -72,6 +72,7 @@ The manifest will support:
 - named profiles such as `web-small`, `desktop-default`, and `mobile-default`
 - explicit enable and disable lists for Godot modules and features
 - validation of incompatible combinations
+- build-extension inputs for shared code, include roots, and compile settings
 
 ## Build Modes
 
@@ -150,6 +151,29 @@ platforms:
 ```
 
 This file is a source of truth for generated `custom.py` or equivalent build flags.
+
+## Build Extension Hooks
+
+Consumer projects sometimes need more than `game/src`.
+
+The recommended `gdcpps` extension model is:
+
+1. declarative build inputs in the manifest for extra include directories, source globs, defines, libraries, and compiler settings
+2. an optional Python hook file only for cases that do not fit the declarative model
+
+This keeps the common path inspectable and portable while still allowing advanced users to extend the generated SCons environment.
+
+The intended detailed design lives in `docs/HOOKS.md`.
+
+Currently implemented manifest fields are:
+
+- `build.cpp_standard`
+- `build.shared.extra_include_dirs`
+- `build.shared.extra_source_globs`
+- `build.debug.extra_include_dirs`
+- `build.debug.extra_source_globs`
+- `build.module.extra_include_dirs`
+- `build.module.extra_source_globs`
 
 ## Planned User Experience
 
@@ -241,6 +265,7 @@ Likely defaults:
 - Godot feature flags interact in non-obvious ways, so validation must be part of the build tool.
 - Consumers will expect deterministic behavior across machines, so dependency acquisition and toolchain checks must be rigorous.
 - The debug and release integration paths are different enough that generated layouts must avoid accidental drift between them.
+- If debug and module build extensions are configured differently, consumers can accidentally ship code that was never exercised in debug.
 
 ## Milestones
 

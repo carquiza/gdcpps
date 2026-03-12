@@ -107,6 +107,231 @@ web.release.wasm32 = "res://bin/lib{module_name}.web.template_release.wasm32.not
 """
 
 
+def _resolve_manifest_paths(project_root: Path, values: object) -> list[Path]:
+    if not isinstance(values, list):
+        return []
+
+    resolved: list[Path] = []
+    for value in values:
+        if not isinstance(value, str) or not value:
+            continue
+        path = Path(value)
+        if not path.is_absolute():
+            path = (project_root / path).resolve()
+        else:
+            path = path.resolve()
+        resolved.append(path)
+    return resolved
+
+
+def _python_path_list(paths: list[Path]) -> str:
+    if not paths:
+        return "[]"
+    rendered = ", ".join(f'r\"{path}\"' for path in paths)
+    return f"[{rendered}]"
+
+
+def _string_list(values: object) -> list[str]:
+    if not isinstance(values, list):
+        return []
+
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if not isinstance(value, str) or not value:
+            continue
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def _merge_string_lists(*values: object) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        for item in _string_list(value):
+            if item in seen:
+                continue
+            seen.add(item)
+            result.append(item)
+    return result
+
+
+def _build_section(manifest: dict, section_name: str) -> dict:
+    build = manifest.get("build", {})
+    if not isinstance(build, dict):
+        return {}
+    section = build.get(section_name, {})
+    return section if isinstance(section, dict) else {}
+
+
+def _cpp_standard(manifest: dict) -> str | None:
+    build = manifest.get("build", {})
+    if not isinstance(build, dict):
+        return None
+    cpp_standard = build.get("cpp_standard")
+    if not isinstance(cpp_standard, str) or not cpp_standard:
+        return None
+    return cpp_standard
+
+
+def _build_extensions(project_root: Path, manifest: dict, mode: str) -> dict[str, object]:
+    shared = _build_section(manifest, "shared")
+    mode_build = _build_section(manifest, mode)
+
+    include_dirs = _merge_string_lists(
+        shared.get("include_dirs"),
+        shared.get("extra_include_dirs"),
+        mode_build.get("include_dirs"),
+        mode_build.get("extra_include_dirs"),
+    )
+    source_globs = _merge_string_lists(
+        shared.get("source_globs"),
+        shared.get("extra_source_globs"),
+        mode_build.get("source_globs"),
+        mode_build.get("extra_source_globs"),
+    )
+    defines = _merge_string_lists(shared.get("defines"), mode_build.get("defines"))
+    cxxflags = _merge_string_lists(shared.get("cxxflags"), mode_build.get("cxxflags"))
+
+    return {
+        "cpp_standard": _cpp_standard(manifest),
+        "include_dirs": _resolve_manifest_paths(project_root, include_dirs),
+        "source_globs": _resolve_manifest_paths(project_root, source_globs),
+        "defines": defines,
+        "cxxflags": cxxflags,
+    }
+
+
+def _python_string_list(values: list[str]) -> str:
+    if not values:
+        return "[]"
+    rendered = ", ".join(repr(value) for value in values)
+    return f"[{rendered}]"
+
+
+def _scons_flag_block(env_name: str, build_extensions: dict[str, object]) -> str:
+    cpp_standard = build_extensions["cpp_standard"]
+    cxxflags = build_extensions["cxxflags"]
+    lines: list[str] = []
+
+    if cpp_standard:
+        lines.extend([
+            f"if {env_name}[\"platform\"] == \"windows\":",
+            f"    {env_name}[\"CXXFLAGS\"] = [flag for flag in {env_name}[\"CXXFLAGS\"] if not str(flag).startswith(\"/std:\")]",
+            f"    {env_name}.Append(CXXFLAGS=[\"/std:{cpp_standard}\"])",
+            "else:",
+            f"    {env_name}[\"CXXFLAGS\"] = [flag for flag in {env_name}[\"CXXFLAGS\"] if not str(flag).startswith(\"-std=\")]",
+            f"    {env_name}.Append(CXXFLAGS=[\"-std={cpp_standard}\"])",
+        ])
+
+    if cxxflags:
+        lines.append(f"{env_name}.Append(CXXFLAGS={_python_string_list(cxxflags)})")
+
+    return "\n".join(lines)
+
+
+def _indent_block(text: str, prefix: str) -> str:
+    if not text:
+        return ""
+    return "\n".join(prefix + line if line else line for line in text.splitlines())
+
+
+def _module_scsub_shim_text() -> str:
+    return """#!/usr/bin/env python
+
+import importlib.util
+import os
+from glob import glob
+
+Import("env")
+Import("env_modules")
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(str(File("SCsub").srcnode())), ".."))
+source_root = os.path.join(project_root, "game")
+generated_helper = os.path.join(project_root, ".gdcpps", "generated", "module_build.py")
+
+if os.path.exists(generated_helper):
+    spec = importlib.util.spec_from_file_location("gdcpps_module_build", generated_helper)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load generated module helper: {generated_helper}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.configure_module(env, env_modules)
+else:
+    env_project = env_modules.Clone()
+    env_project.Append(CPPPATH=[
+        os.path.join(source_root, "include"),
+        os.path.join(source_root, "src"),
+    ])
+
+    for cpp_file in sorted(glob(os.path.join(source_root, "src", "*.cpp"))):
+        env_project.add_source_files(env.modules_sources, cpp_file)
+
+    env_project.add_source_files(env.modules_sources, os.path.join(source_root, "register_types.cpp"))
+    env_project.add_source_files(env.modules_sources, "register_types.cpp")
+"""
+
+
+def _write_module_scsub_shim(project_root: Path) -> None:
+    scsub_path = project_root / "module" / "SCsub"
+    scsub_path.parent.mkdir(parents=True, exist_ok=True)
+    scsub_path.write_text(_module_scsub_shim_text(), encoding="utf-8", newline="\n")
+
+
+def _write_module_build_script(project_root: Path, module_name: str, manifest: dict) -> Path:
+    upper_name = module_name.upper()
+    build_extensions = _build_extensions(project_root, manifest, "module")
+    flag_block = _scons_flag_block("env_project", build_extensions)
+    if flag_block:
+        flag_block = _indent_block(flag_block, "    ") + "\n"
+
+    content = f"""#!/usr/bin/env python
+import os
+from glob import glob
+
+build_include_dirs = {_python_path_list(build_extensions["include_dirs"])}
+build_source_globs = {_python_path_list(build_extensions["source_globs"])}
+build_defines = {_python_string_list(build_extensions["defines"])}
+
+
+def configure_module(env, env_modules):
+    env_project = env_modules.Clone()
+
+    project_root = os.path.abspath(os.path.join(os.path.dirname(str(File("SCsub").srcnode())), ".."))
+    source_root = os.path.join(project_root, "game")
+
+    env_project.Append(CPPPATH=[
+        os.path.join(source_root, "include"),
+        os.path.join(source_root, "src"),
+    ] + build_include_dirs)
+    env_project.Append(CPPDEFINES=["{upper_name}_MODULE"] + build_defines)
+{flag_block}    sources = sorted(glob(os.path.join(source_root, "src", "*.cpp")))
+    for pattern in build_source_globs:
+        sources.extend(sorted(glob(pattern, recursive=True)))
+
+    seen = set()
+    ordered_sources = []
+    for source in sources:
+        if source in seen:
+            continue
+        seen.add(source)
+        ordered_sources.append(source)
+
+    for source in ordered_sources:
+        env_project.add_source_files(env.modules_sources, source)
+
+    env_project.add_source_files(env.modules_sources, os.path.join(source_root, "register_types.cpp"))
+    env_project.add_source_files(env.modules_sources, "register_types.cpp")
+"""
+    helper_path = project_root / ".gdcpps" / "generated" / "module_build.py"
+    helper_path.parent.mkdir(parents=True, exist_ok=True)
+    helper_path.write_text(content, encoding="utf-8", newline="\n")
+    return helper_path
+
+
 def _ensure_project_runtime_files(project_root: Path, module_name: str, debug_mode: bool) -> None:
     godot_dir = project_root / "project" / ".godot"
     godot_dir.mkdir(parents=True, exist_ok=True)
@@ -133,6 +358,11 @@ def _ensure_project_runtime_files(project_root: Path, module_name: str, debug_mo
 
 def _write_debug_sconstruct(project_root: Path, godot_cpp_dir: Path, module_name: str) -> Path:
     upper_name = module_name.upper()
+    manifest = load_manifest(project_root)
+    build_extensions = _build_extensions(project_root, manifest, "debug")
+    flag_block = _scons_flag_block("env", build_extensions)
+    if flag_block:
+        flag_block = flag_block + "\n"
     content = f"""#!/usr/bin/env python
 import os
 from glob import glob
@@ -141,12 +371,19 @@ project_root = r"{project_root.resolve()}"
 godot_cpp_dir = r"{godot_cpp_dir.resolve()}"
 game_dir = os.path.join(project_root, "game")
 project_dir = os.path.join(project_root, "project")
+build_include_dirs = {_python_path_list(build_extensions["include_dirs"])}
+build_source_globs = {_python_path_list(build_extensions["source_globs"])}
+build_defines = {_python_string_list(build_extensions["defines"])}
 
 env = SConscript(os.path.join(godot_cpp_dir, "SConstruct"))
-env.Append(CPPPATH=[os.path.join(game_dir, "include"), game_dir])
-env.Append(CPPDEFINES=["{upper_name}_GDEXTENSION"])
+env.Append(CPPPATH=[os.path.join(game_dir, "include"), game_dir] + build_include_dirs)
+env.Append(CPPDEFINES=["{upper_name}_GDEXTENSION"] + build_defines)
+{flag_block}
 
 sources = sorted(glob(os.path.join(game_dir, "src", "*.cpp")))
+for pattern in build_source_globs:
+    sources.extend(sorted(glob(pattern, recursive=True)))
+sources = list(dict.fromkeys(sources))
 sources.append(os.path.join(game_dir, "register_types.cpp"))
 
 library = env.SharedLibrary(
@@ -208,12 +445,15 @@ def _build_debug(project_root: Path, platform: str, deps_state: dict, module_nam
     if not (godot_cpp_dir / "SConstruct").exists():
         raise FileNotFoundError(f"Missing godot-cpp SConstruct in {godot_cpp_dir}")
 
+    manifest = load_manifest(project_root)
     env = None
     if platform == "web":
         env = _web_env()
     env = _with_git_safe_dirs(env, godot_cpp_dir)
 
     _ensure_project_runtime_files(project_root, module_name, debug_mode=True)
+    _write_module_scsub_shim(project_root)
+    _write_module_build_script(project_root, module_name, manifest)
     sconstruct_path = _write_debug_sconstruct(project_root, godot_cpp_dir, module_name)
 
     cmd = [
@@ -305,6 +545,7 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
     if not (godot_dir / "SConstruct").exists():
         raise FileNotFoundError(f"Missing Godot SConstruct in {godot_dir}")
 
+    manifest = load_manifest(project_root)
     env = None
     if platform == "web":
         env = _web_env()
@@ -312,6 +553,8 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
     env = _with_git_safe_dirs(env, godot_dir, godot_cpp_dir)
 
     _ensure_project_runtime_files(project_root, module_name, debug_mode=False)
+    _write_module_scsub_shim(project_root)
+    _write_module_build_script(project_root, module_name, manifest)
     profile_path = _render_release_profile(project_root, platform)
 
     cmd = [

@@ -97,6 +97,7 @@ Deliverables:
 - example project
 - CI strategy
 - migration guidance from the current gdcpp template
+- reusable build-extension hooks for monorepo and shared-code layouts
 
 Exit criteria:
 
@@ -111,3 +112,4 @@ Exit criteria:
 5. Feature profile generation
 6. Linux/macOS
 7. iOS/Android
+8. Generalized manifest-driven build hooks for extra source roots and compiler settings

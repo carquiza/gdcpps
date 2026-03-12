@@ -350,34 +350,39 @@ def configure(env):
 
 
 def _module_scsub_text(module_name: str) -> str:
-    upper_name = module_name.upper()
-    return f"""#!/usr/bin/env python
+    _ = module_name
+    return """#!/usr/bin/env python
 
+import importlib.util
 import os
+from glob import glob
 
 Import("env")
 Import("env_modules")
 
-env_{module_name} = env_modules.Clone()
-
 project_root = os.path.abspath(os.path.join(os.path.dirname(str(File("SCsub").srcnode())), ".."))
 source_root = os.path.join(project_root, "game")
+generated_helper = os.path.join(project_root, ".gdcpps", "generated", "module_build.py")
 
-env_{module_name}.Append(CPPPATH=[
-    os.path.join(source_root, "include"),
-    os.path.join(source_root, "src"),
-])
-env_{module_name}.Append(CPPDEFINES=["{upper_name}_MODULE"])
+if os.path.exists(generated_helper):
+    spec = importlib.util.spec_from_file_location("gdcpps_module_build", generated_helper)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load generated module helper: {generated_helper}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.configure_module(env, env_modules)
+else:
+    env_project = env_modules.Clone()
+    env_project.Append(CPPPATH=[
+        os.path.join(source_root, "include"),
+        os.path.join(source_root, "src"),
+    ])
 
-for cpp_file in sorted(os.listdir(os.path.join(source_root, "src"))):
-    if cpp_file.endswith(".cpp"):
-        env_{module_name}.add_source_files(
-            env.modules_sources,
-            os.path.join(source_root, "src", cpp_file),
-        )
+    for cpp_file in sorted(glob(os.path.join(source_root, "src", "*.cpp"))):
+        env_project.add_source_files(env.modules_sources, cpp_file)
 
-env_{module_name}.add_source_files(env.modules_sources, os.path.join(source_root, "register_types.cpp"))
-env_{module_name}.add_source_files(env.modules_sources, "register_types.cpp")
+    env_project.add_source_files(env.modules_sources, os.path.join(source_root, "register_types.cpp"))
+    env_project.add_source_files(env.modules_sources, "register_types.cpp")
 """
 
 
