@@ -10,6 +10,7 @@ venv/
 .sconsign.dblite
 .sconsign5.dblite
 *.o
+*.os
 *.obj
 *.a
 *.lib

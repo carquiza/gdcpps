@@ -47,6 +47,26 @@ def _run_git(args: list[str], safe_dirs: list[Path] | None = None, cwd: Path | N
     return completed.stdout.strip()
 
 
+def _try_git(
+    args: list[str],
+    safe_dirs: list[Path] | None = None,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
+    cmd = ["git"]
+    cmd.extend(["-c", "protocol.file.allow=always"])
+    for safe_dir in safe_dirs or []:
+        cmd.extend(["-c", f"safe.directory={safe_dir.resolve().as_posix()}"])
+    cmd.extend(args)
+
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd) if cwd else None,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+
+
 def _resolve_source(source: str | None, default_url: str) -> str:
     if not source:
         return default_url
@@ -55,6 +75,35 @@ def _resolve_source(source: str | None, default_url: str) -> str:
     if candidate.exists():
         return str(candidate.resolve())
     return source
+
+
+def _checkout_ref(target_dir: Path, ref: str, safe_dirs: list[Path]) -> str:
+    candidates = [ref, f"origin/{ref}"]
+    if not ref.endswith("-stable"):
+        candidates.extend(
+            [
+                f"godot-{ref}-stable",
+                f"{ref}-stable",
+            ]
+        )
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+
+        completed = _try_git(
+            ["-C", str(target_dir), "checkout", candidate],
+            safe_dirs=safe_dirs,
+        )
+        if completed.returncode == 0:
+            if completed.stdout:
+                print(completed.stdout.strip())
+            return candidate
+
+    tried = ", ".join(seen)
+    raise ValueError(f"Could not resolve git ref '{ref}' in {target_dir}. Tried: {tried}")
 
 
 def _sync_repo(name: str, spec: dict[str, str], target_root: Path, source_override: str | None) -> dict[str, str]:
@@ -76,13 +125,13 @@ def _sync_repo(name: str, spec: dict[str, str], target_root: Path, source_overri
         target_root.mkdir(parents=True, exist_ok=True)
         _run_git(["clone", source, str(target_dir)], safe_dirs=[local_source] if local_source else None)
 
-    _run_git(["-C", str(target_dir), "checkout", ref], safe_dirs=safe_dirs)
+    resolved_ref = _checkout_ref(target_dir, ref, safe_dirs)
     revision = _run_git(["-C", str(target_dir), "rev-parse", "HEAD"], safe_dirs=safe_dirs)
 
     return {
         "path": str(target_dir.resolve()),
         "source": source,
-        "ref": ref,
+        "ref": resolved_ref,
         "revision": revision,
     }
 

@@ -5,6 +5,7 @@ artifacts/
 
 # Compiler intermediates
 *.o
+*.os
 *.obj
 *.a
 *.lib

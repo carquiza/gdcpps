@@ -14,7 +14,7 @@ from profile_resolver import load_manifest, render_profile, resolve_flags
 from toolchains import emsdk_env
 
 
-SUPPORTED_PLATFORMS = {"windows", "web"}
+SUPPORTED_PLATFORMS = {"linux", "windows", "web"}
 SUPPORTED_MODES = {"debug", "release"}
 
 
@@ -76,13 +76,49 @@ def _with_git_safe_dirs(env: dict[str, str] | None, *paths: Path) -> dict[str, s
     return merged
 
 
+def _gdextension_text(module_name: str) -> str:
+    return f"""[configuration]
+
+entry_symbol = "{module_name}_library_init"
+compatibility_minimum = "4.5"
+
+[libraries]
+
+windows.debug.x86_32 = "res://bin/lib{module_name}.windows.template_debug.x86_32.dll"
+windows.release.x86_32 = "res://bin/lib{module_name}.windows.template_release.x86_32.dll"
+windows.debug.x86_64 = "res://bin/lib{module_name}.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/lib{module_name}.windows.template_release.x86_64.dll"
+windows.debug.arm64 = "res://bin/lib{module_name}.windows.template_debug.arm64.dll"
+windows.release.arm64 = "res://bin/lib{module_name}.windows.template_release.arm64.dll"
+linux.debug.x86_32 = "res://bin/lib{module_name}.linux.template_debug.x86_32.so"
+linux.release.x86_32 = "res://bin/lib{module_name}.linux.template_release.x86_32.so"
+linux.debug.x86_64 = "res://bin/lib{module_name}.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://bin/lib{module_name}.linux.template_release.x86_64.so"
+linux.debug.arm32 = "res://bin/lib{module_name}.linux.template_debug.arm32.so"
+linux.release.arm32 = "res://bin/lib{module_name}.linux.template_release.arm32.so"
+linux.debug.arm64 = "res://bin/lib{module_name}.linux.template_debug.arm64.so"
+linux.release.arm64 = "res://bin/lib{module_name}.linux.template_release.arm64.so"
+macos.debug = "res://bin/lib{module_name}.macos.template_debug.framework"
+macos.release = "res://bin/lib{module_name}.macos.template_release.framework"
+web.debug.threads.wasm32 = "res://bin/lib{module_name}.web.template_debug.wasm32.wasm"
+web.release.threads.wasm32 = "res://bin/lib{module_name}.web.template_release.wasm32.wasm"
+web.debug.wasm32 = "res://bin/lib{module_name}.web.template_debug.wasm32.nothreads.wasm"
+web.release.wasm32 = "res://bin/lib{module_name}.web.template_release.wasm32.nothreads.wasm"
+"""
+
+
 def _ensure_project_runtime_files(project_root: Path, module_name: str, debug_mode: bool) -> None:
     godot_dir = project_root / "project" / ".godot"
     godot_dir.mkdir(parents=True, exist_ok=True)
+    project_bin = project_root / "project" / "bin"
+    project_bin.mkdir(parents=True, exist_ok=True)
 
     cache_path = godot_dir / "global_script_class_cache.cfg"
     if not cache_path.exists():
         cache_path.write_text('[""]\n\nlist=[]\n', encoding="utf-8", newline="\n")
+
+    gdextension_path = project_bin / f"{module_name}.gdextension"
+    gdextension_path.write_text(_gdextension_text(module_name), encoding="utf-8", newline="\n")
 
     extension_list = godot_dir / "extension_list.cfg"
     if debug_mode:
@@ -206,6 +242,10 @@ def _copy_native_release_outputs(godot_dir: Path, destination: Path, platform: s
     bin_dir = godot_dir / "bin"
     if platform == "windows":
         sources = list(bin_dir.glob("godot.windows.template_release*.exe"))
+    elif platform == "linux":
+        sources = list(bin_dir.glob("godot.linuxbsd.template_release*")) + list(
+            bin_dir.glob("godot.linux.template_release*")
+        )
     elif platform == "web":
         sources = list(bin_dir.glob("godot.web.template_release*.wasm")) + list(
             bin_dir.glob("godot.web.template_release*.js")
@@ -236,6 +276,17 @@ def _pack_windows_release(project_root: Path, build_dir: Path) -> None:
         pack.write_pck(str(project_dir), str(temp_pck))
         pack.embed_pck(str(exe_path), str(temp_pck))
         temp_pck.unlink(missing_ok=True)
+
+
+def _pack_linux_release(project_root: Path, build_dir: Path) -> None:
+    project_dir = project_root / "project"
+    executables = [path for path in sorted(build_dir.glob("godot.linux*.template_release*")) if path.is_file()]
+    if not executables:
+        raise FileNotFoundError(f"No Linux release executable found in {build_dir}")
+
+    for exe_path in executables:
+        pck_path = Path(str(exe_path) + ".pck")
+        pack.write_pck(str(project_dir), str(pck_path))
 
 
 def _pack_web_release(project_root: Path, build_dir: Path, project_name: str) -> None:
@@ -280,6 +331,8 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
 
     if platform == "windows":
         _pack_windows_release(project_root, destination)
+    elif platform == "linux":
+        _pack_linux_release(project_root, destination)
     elif platform == "web":
         _pack_web_release(project_root, destination, project_name)
 

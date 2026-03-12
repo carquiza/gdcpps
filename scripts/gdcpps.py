@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Build a scaffolded project for a given mode and platform.",
     )
     build_parser.add_argument("mode", help="Build mode, currently debug or release.")
-    build_parser.add_argument("platform", help="Target platform, currently windows or web.")
+    build_parser.add_argument("platform", help="Target platform, currently linux, windows, or web.")
     build_parser.add_argument(
         "--project",
         dest="project_dir",
@@ -90,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run a built scaffolded project.",
     )
     run_parser.add_argument("mode", help="Run mode, currently debug or release.")
-    run_parser.add_argument("platform", help="Target platform, currently windows.")
+    run_parser.add_argument("platform", help="Target platform, currently linux or windows.")
     run_parser.add_argument(
         "--project",
         dest="project_dir",
