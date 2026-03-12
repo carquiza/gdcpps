@@ -3,10 +3,7 @@
 void SpinningCubeMain::_bind_methods() {
 }
 
-#ifdef SPINNING_CUBE_MODULE
 void SpinningCubeMain::_notification(int p_what) {
-	Node3D::_notification(p_what);
-
 	switch (p_what) {
 		case NOTIFICATION_READY:
 			_ready();
@@ -16,12 +13,14 @@ void SpinningCubeMain::_notification(int p_what) {
 			break;
 	}
 }
-#endif
 
 void SpinningCubeMain::_ready() {
 	set_process(true);
 }
 
 void SpinningCubeMain::_process(double p_delta) {
-	rotate_y(p_delta);
+	Node3D *cube = Object::cast_to<Node3D>(get_node_or_null(NodePath("Cube")));
+	if (cube) {
+		cube->rotate_y(p_delta);
+	}
 }

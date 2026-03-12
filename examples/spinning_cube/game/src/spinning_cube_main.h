@@ -7,12 +7,9 @@ class SpinningCubeMain : public Node3D {
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
 
 public:
 	void _ready();
 	void _process(double p_delta);
-
-#ifdef SPINNING_CUBE_MODULE
-	void _notification(int p_what);
-#endif
 };

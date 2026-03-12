@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pack
 from profile_resolver import load_manifest, render_profile, resolve_flags
+from toolchains import emsdk_env
 
 
 SUPPORTED_PLATFORMS = {"windows", "web"}
@@ -42,6 +43,37 @@ def _jobs() -> str:
 def _run(cmd: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
     print(f"Running: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=str(cwd), env=env, check=True)
+
+
+def _web_env() -> dict[str, str]:
+    env = emsdk_env()
+    if env is None:
+        raise EnvironmentError(
+            "Web build requires emcc in PATH or a valid EMSDK installation at EMSDK or D:\\Source\\emsdk."
+        )
+    return env
+
+
+def _with_git_safe_dirs(env: dict[str, str] | None, *paths: Path) -> dict[str, str]:
+    merged = dict(env or os.environ)
+
+    entries: list[str] = []
+    count = int(merged.get("GIT_CONFIG_COUNT", "0"))
+    for index in range(count):
+        key = merged.get(f"GIT_CONFIG_KEY_{index}")
+        value = merged.get(f"GIT_CONFIG_VALUE_{index}")
+        if key is not None and value is not None:
+            entries.extend([key, value])
+
+    for path in paths:
+        entries.extend(["safe.directory", path.resolve().as_posix()])
+
+    merged["GIT_CONFIG_COUNT"] = str(len(entries) // 2)
+    for index in range(len(entries) // 2):
+        merged[f"GIT_CONFIG_KEY_{index}"] = entries[index * 2]
+        merged[f"GIT_CONFIG_VALUE_{index}"] = entries[index * 2 + 1]
+
+    return merged
 
 
 def _ensure_project_runtime_files(project_root: Path, module_name: str, debug_mode: bool) -> None:
@@ -106,6 +138,13 @@ def _copy_matches(pattern: str, destination: Path) -> list[Path]:
 
 
 def _copy_files(sources: list[Path], destination: Path) -> list[Path]:
+    if destination.exists():
+        try:
+            shutil.rmtree(destination)
+        except PermissionError as exc:
+            raise PermissionError(
+                f"Cannot replace build output at {destination}. Close any running app or process using files in that directory and retry."
+            ) from exc
     destination.mkdir(parents=True, exist_ok=True)
     copied: list[Path] = []
     for source in sources:
@@ -133,8 +172,10 @@ def _build_debug(project_root: Path, platform: str, deps_state: dict, module_nam
     if not (godot_cpp_dir / "SConstruct").exists():
         raise FileNotFoundError(f"Missing godot-cpp SConstruct in {godot_cpp_dir}")
 
-    if platform == "web" and shutil.which("emcc") is None:
-        raise EnvironmentError("Web debug build requires emcc in PATH.")
+    env = None
+    if platform == "web":
+        env = _web_env()
+    env = _with_git_safe_dirs(env, godot_cpp_dir)
 
     _ensure_project_runtime_files(project_root, module_name, debug_mode=True)
     sconstruct_path = _write_debug_sconstruct(project_root, godot_cpp_dir, module_name)
@@ -149,10 +190,10 @@ def _build_debug(project_root: Path, platform: str, deps_state: dict, module_nam
         "target=template_debug",
         f"-j{_jobs()}",
     ]
-    _run(cmd, project_root)
+    _run(cmd, project_root, env=env)
 
     project_bin = project_root / "project" / "bin"
-    artifacts = list(project_bin.glob(f"lib{module_name}*"))
+    artifacts = list(project_bin.glob(f"lib{module_name}.{platform}*"))
     if not artifacts:
         raise FileNotFoundError(f"No debug artifacts found in {project_bin}")
 
@@ -213,8 +254,11 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
     if not (godot_dir / "SConstruct").exists():
         raise FileNotFoundError(f"Missing Godot SConstruct in {godot_dir}")
 
-    if platform == "web" and shutil.which("emcc") is None:
-        raise EnvironmentError("Web release build requires emcc in PATH.")
+    env = None
+    if platform == "web":
+        env = _web_env()
+    godot_cpp_dir = Path(deps_state["dependencies"]["godot_cpp"]["path"])
+    env = _with_git_safe_dirs(env, godot_dir, godot_cpp_dir)
 
     _ensure_project_runtime_files(project_root, module_name, debug_mode=False)
     profile_path = _render_release_profile(project_root, platform)
@@ -229,7 +273,7 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
         f"custom_modules={project_root / 'module'}",
         f"-j{_jobs()}",
     ]
-    _run(cmd, godot_dir)
+    _run(cmd, godot_dir, env=env)
 
     destination = _build_output_dir(project_root, platform, "release")
     _copy_native_release_outputs(godot_dir, destination, platform)

@@ -26,8 +26,8 @@
 
 - [x] Implement Windows debug build.
 - [x] Implement Windows release build with embedded module.
-- [ ] Implement Web debug build.
-- [ ] Implement Web release build with a size-first default profile.
+- [x] Implement Web debug build.
+- [x] Implement Web release build with a size-first default profile.
 - [x] Translate manifest feature selections into Godot SCons flags.
 
 ## Phase 4
@@ -45,6 +45,7 @@
 ## Phase 6
 
 - [x] Add `doctor` diagnostics.
-- [ ] Add a sample project and end-to-end smoke tests.
+- [x] Add a sample project.
+- [ ] Add automated end-to-end smoke tests.
 - [ ] Add CI strategy documentation.
 - [ ] Write consumer onboarding docs.

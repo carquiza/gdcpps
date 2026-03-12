@@ -8,10 +8,11 @@ import shutil
 import sys
 from importlib.util import find_spec
 
+from toolchains import find_emsdk_root
+
 
 TOOL_CHECKS = [
     ("git", "git", "required for dependency sync"),
-    ("emscripten", "emcc", "required for Web builds"),
     ("adb", "adb", "useful for Android device deployment"),
     ("java", "java", "required by Android tooling"),
 ]
@@ -31,6 +32,18 @@ def _tool_status(label: str, exe_name: str, note: str) -> str:
     if path:
         return f"[ok]   tool:{label:<12} {path}"
     return f"[miss] tool:{label:<12} not found ({note})"
+
+
+def _emscripten_status() -> str:
+    path = shutil.which("emcc")
+    if path:
+        return f"[ok]   tool:emscripten   {path}"
+
+    emsdk_root = find_emsdk_root()
+    if emsdk_root is not None:
+        return f"[ok]   tool:emscripten   {emsdk_root / 'upstream' / 'emscripten' / 'emcc.bat'}"
+
+    return "[miss] tool:emscripten   not found (required for Web builds)"
 
 
 def _scons_status() -> str:
@@ -73,6 +86,7 @@ def run() -> int:
     print("")
     print("Tools")
     print(_scons_status())
+    print(_emscripten_status())
     for label, exe_name, note in TOOL_CHECKS:
         print(_tool_status(label, exe_name, note))
 

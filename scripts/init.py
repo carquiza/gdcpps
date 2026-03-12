@@ -91,10 +91,22 @@ renderer/rendering_method="forward_plus"
 """
 
 
-def _main_tscn_text(project_name: str) -> str:
-    return f"""[gd_scene format=3]
+def _main_tscn_text(project_name: str, class_name: str) -> str:
+    return f"""[gd_scene load_steps=2 format=3]
 
-[node name="{project_name}" type="Node3D"]
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+
+[node name="{project_name}" type="{class_name}"]
+
+[node name="Cube" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_1")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 4)
+current = true
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 2, 0)
 """
 
 
@@ -212,14 +224,11 @@ class {class_name} : public Node3D {{
 
 protected:
 \tstatic void _bind_methods();
+\tvoid _notification(int p_what);
 
 public:
 \tvoid _ready();
 \tvoid _process(double p_delta);
-
-#ifdef {upper_name}_MODULE
-\tvoid _notification(int p_what);
-#endif
 }};
 """
 
@@ -231,10 +240,7 @@ def _game_source_text(module_name: str, class_name: str) -> str:
 void {class_name}::_bind_methods() {{
 }}
 
-#ifdef {upper_name}_MODULE
 void {class_name}::_notification(int p_what) {{
-\tNode3D::_notification(p_what);
-
 \tswitch (p_what) {{
 \t\tcase NOTIFICATION_READY:
 \t\t\t_ready();
@@ -244,14 +250,16 @@ void {class_name}::_notification(int p_what) {{
 \t\t\tbreak;
 \t}}
 }}
-#endif
 
 void {class_name}::_ready() {{
 \tset_process(true);
 }}
 
 void {class_name}::_process(double p_delta) {{
-\trotate_y(p_delta);
+\tNode3D *cube = Object::cast_to<Node3D>(get_node_or_null(NodePath("Cube")));
+\tif (cube) {{
+\t\tcube->rotate_y(p_delta);
+\t}}
 }}
 """
 
@@ -335,6 +343,14 @@ def _dirs_file_text() -> str:
 build/
 deps/
 artifacts/
+
+# Compiler intermediates
+*.o
+*.obj
+*.a
+*.lib
+*.exp
+*.pdb
 """
 
 
@@ -368,7 +384,7 @@ def run(name: str, project_dir: str | None = None) -> int:
     _write_text(destination / ".gdcpps" / "README.txt", _bootstrap_note_text())
 
     _write_text(destination / "project" / "project.godot", _project_godot_text(name, godot_version))
-    _write_text(destination / "project" / "main.tscn", _main_tscn_text(name))
+    _write_text(destination / "project" / "main.tscn", _main_tscn_text(name, class_name))
     _write_text(destination / "project" / "bin" / f"{module_name}.gdextension", _gdextension_text(module_name))
 
     _write_text(destination / "game" / "include" / "gdcpp.h", _gdcpp_header_text(module_name))

@@ -10,3 +10,5 @@ This repository is the planned consumer-facing scaffold and build orchestration 
 - let consumers choose engine feature sets per target
 
 See `docs/SPEC.md`, `docs/USAGE.md`, and `docs/PLAN.md` for the initial design.
+
+Repo-local launchers are available as `gdcpps.bat` and `gdcpps.sh` in the repository root.

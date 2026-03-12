@@ -9,6 +9,13 @@ venv/
 # SCons
 .sconsign.dblite
 .sconsign5.dblite
+*.o
+*.obj
+*.a
+*.lib
+*.exp
+*.pdb
+*.log
 
 # Generated scaffold state
 .gdcpps/generated/

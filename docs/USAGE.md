@@ -2,9 +2,18 @@
 
 ## Status
 
-This document describes the intended workflow for gdcpps. The repository is being built now; `init`, `deps sync`, `render-profile`, and `doctor` exist in an early form, while the rest of the workflow is still planned.
+This document describes the current `gdcpps` workflow. `init`, `deps sync`, `render-profile`, `doctor`, and the Windows/Web `build` paths are implemented in an early but usable form. Linux, macOS, iOS, and Android are still planned.
 
 ## Intended Workflow
+
+You can invoke the CLI through the repo-local launchers:
+
+```text
+.\gdcpps.bat doctor
+./gdcpps.sh doctor
+```
+
+Both wrappers call `scripts/gdcpps.py`. The Windows launcher prefers `D:\Source\AIResearch\venv\Scripts\python.exe`, then local `.\.venv` or `.\venv`.
 
 ### Create a Project
 
@@ -44,6 +53,7 @@ Expected behavior:
 - report host OS and Python interpreter
 - check common tools such as `git`, `scons`, `emcc`, `adb`, and `java`
 - report relevant environment variables for Web, Android, and local Godot overrides
+- auto-detect Emscripten from `EMSDK` or `D:\Source\emsdk` on Windows hosts
 
 ### Build Debug
 
@@ -73,9 +83,10 @@ Expected behavior:
 
 Current status:
 
-- Windows debug is implemented in an early form
-- Windows release is implemented in an early form
-- Web debug/release command paths exist, but still need end-to-end validation with a valid Emscripten setup
+- Windows debug is implemented and validated against the `examples/spinning_cube` scaffold
+- Windows release is implemented and validated against the embedded-module path
+- Web debug is implemented and validated with Emscripten
+- Web release is implemented and validated with the `web-small` default profile
 - Linux, macOS, iOS, and Android build orchestration are still planned
 
 ### Render a Godot Profile
@@ -101,9 +112,15 @@ gdcpps run release web
 
 Expected behavior:
 
-- debug launches the editor/runtime against the generated client project
+- debug launches a Godot binary against `project/` and loads the built GDExtension
 - native release launches the built executable or app bundle
 - web release serves the build over HTTP for local testing
+
+Current status:
+
+- `run debug windows` is implemented and requires `GODOT_BIN` or a Godot executable on `PATH`
+- `run release windows` is implemented and launches the packaged executable from `build/windows/release`
+- Web, Linux, macOS, iOS, and Android run helpers are still planned
 
 ## Consumer Manifest
 
@@ -173,7 +190,7 @@ Expected characteristics:
 
 Current implementation priorities are:
 
-1. Add validation for missing SDKs and unsupported target/host combinations.
-2. Implement Windows and Web debug/release builds.
-3. Expand to Linux/macOS, then mobile.
-4. Harden diagnostics, examples, and smoke tests.
+1. Expand the validated build matrix to Linux and macOS.
+2. Add Android and iOS pipelines plus signing/export guidance.
+3. Harden diagnostics, examples, and smoke tests.
+4. Add CI strategy and onboarding documentation.
