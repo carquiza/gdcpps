@@ -176,6 +176,8 @@ build:
 
 These fields are applied to the generated debug GDExtension build glue and the generated module build glue.
 
+For release/module builds, `gdcpps` now assigns explicit object targets for hooked external sources so temporary `.obj` files stay under the Godot build tree instead of being emitted next to the original source files.
+
 The broader extension model is documented in `docs/HOOKS.md`.
 
 Typical use cases:

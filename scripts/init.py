@@ -370,19 +370,41 @@ if os.path.exists(generated_helper):
         raise RuntimeError(f"Unable to load generated module helper: {generated_helper}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    module.configure_module(env, env_modules)
+    module.configure_module(env, env_modules, project_root)
 else:
     env_project = env_modules.Clone()
+    env_project["redirect_build_objects"] = False
     env_project.Append(CPPPATH=[
         os.path.join(source_root, "include"),
         os.path.join(source_root, "src"),
     ])
+    object_root = env.Dir("#bin/obj/external/gdcpps").abspath
+
+    def object_target_for(source):
+        source = os.path.abspath(source)
+        try:
+            relative_to_project = os.path.relpath(source, project_root)
+            if not relative_to_project.startswith(".."):
+                relative_object = os.path.splitext(relative_to_project)[0]
+            else:
+                raise ValueError
+        except ValueError:
+            drive, tail = os.path.splitdrive(source)
+            relative_object = os.path.splitext(tail.lstrip("\\\\/"))[0]
+            if drive:
+                relative_object = os.path.join(drive.rstrip(":\\\\"), relative_object)
+        return os.path.join(object_root, relative_object)
 
     for cpp_file in sorted(glob(os.path.join(source_root, "src", "*.cpp"))):
-        env_project.add_source_files(env.modules_sources, cpp_file)
+        built_objects = env_project.Object(target=object_target_for(cpp_file), source=cpp_file)
+        env.modules_sources.extend(env_project.Flatten([built_objects]))
 
-    env_project.add_source_files(env.modules_sources, os.path.join(source_root, "register_types.cpp"))
-    env_project.add_source_files(env.modules_sources, "register_types.cpp")
+    for source in (
+        os.path.join(source_root, "register_types.cpp"),
+        os.path.join(project_root, "module", "register_types.cpp"),
+    ):
+        built_objects = env_project.Object(target=object_target_for(source), source=source)
+        env.modules_sources.extend(env_project.Flatten([built_objects]))
 """
 
 

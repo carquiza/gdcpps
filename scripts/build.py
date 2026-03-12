@@ -259,7 +259,7 @@ if os.path.exists(generated_helper):
         raise RuntimeError(f"Unable to load generated module helper: {generated_helper}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    module.configure_module(env, env_modules)
+    module.configure_module(env, env_modules, project_root)
 else:
     env_project = env_modules.Clone()
     env_project.Append(CPPPATH=[
@@ -297,11 +297,12 @@ build_source_globs = {_python_path_list(build_extensions["source_globs"])}
 build_defines = {_python_string_list(build_extensions["defines"])}
 
 
-def configure_module(env, env_modules):
+def configure_module(env, env_modules, project_root):
     env_project = env_modules.Clone()
+    env_project["redirect_build_objects"] = False
 
-    project_root = os.path.abspath(os.path.join(os.path.dirname(str(File("SCsub").srcnode())), ".."))
     source_root = os.path.join(project_root, "game")
+    object_root = env.Dir("#bin/obj/external/gdcpps").abspath
 
     env_project.Append(CPPPATH=[
         os.path.join(source_root, "include"),
@@ -320,11 +321,31 @@ def configure_module(env, env_modules):
         seen.add(source)
         ordered_sources.append(source)
 
-    for source in ordered_sources:
-        env_project.add_source_files(env.modules_sources, source)
+    def object_target_for(source):
+        source = os.path.abspath(source)
+        try:
+            relative_to_project = os.path.relpath(source, project_root)
+            if not relative_to_project.startswith(".."):
+                relative_object = os.path.splitext(relative_to_project)[0]
+            else:
+                raise ValueError
+        except ValueError:
+            drive, tail = os.path.splitdrive(source)
+            relative_object = os.path.splitext(tail.lstrip("\\\\/"))[0]
+            if drive:
+                relative_object = os.path.join(drive.rstrip(":\\\\"), relative_object)
+        return os.path.join(object_root, relative_object)
 
-    env_project.add_source_files(env.modules_sources, os.path.join(source_root, "register_types.cpp"))
-    env_project.add_source_files(env.modules_sources, "register_types.cpp")
+    for source in ordered_sources:
+        built_objects = env_project.Object(target=object_target_for(source), source=source)
+        env.modules_sources.extend(env_project.Flatten([built_objects]))
+
+    for source in (
+        os.path.join(source_root, "register_types.cpp"),
+        os.path.join(project_root, "module", "register_types.cpp"),
+    ):
+        built_objects = env_project.Object(target=object_target_for(source), source=source)
+        env.modules_sources.extend(env_project.Flatten([built_objects]))
 """
     helper_path = project_root / ".gdcpps" / "generated" / "module_build.py"
     helper_path.parent.mkdir(parents=True, exist_ok=True)

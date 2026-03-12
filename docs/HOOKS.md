@@ -119,6 +119,8 @@ That means:
 
 This avoids the current drift where debug generation lives in `scripts/build.py` while module customization only exists in project-local generated files.
 
+For module builds, hooked source files are compiled into explicit object targets under Godot's build tree instead of beside the original source files. This matters for monorepo layouts, because external source globs often point outside the generated Godot project directory.
+
 ## Platform Overrides
 
 Platform-specific build inputs should come after the base model is stable.

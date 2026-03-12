@@ -21,4 +21,6 @@ Current hook support is manifest-driven:
 - `build.module.extra_include_dirs`
 - `build.module.extra_source_globs`
 
+Release/module builds place hooked external object files under the Godot build tree instead of beside the original source files.
+
 Repo-local launchers are available as `gdcpps.bat` and `gdcpps.sh` in the repository root.
