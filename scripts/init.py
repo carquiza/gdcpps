@@ -237,6 +237,22 @@ def _game_source_text(module_name: str, class_name: str) -> str:
     upper_name = module_name.upper()
     return f"""#include "{module_name}_main.h"
 
+#ifdef {upper_name}_GDEXTENSION
+#include <godot_cpp/classes/directional_light3d.hpp>
+#include <godot_cpp/classes/environment.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/plane_mesh.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
+#include <godot_cpp/classes/world_environment.hpp>
+#elif defined({upper_name}_MODULE)
+#include "scene/3d/light_3d.h"
+#include "scene/3d/mesh_instance_3d.h"
+#include "scene/3d/world_environment.h"
+#include "scene/resources/3d/primitive_meshes.h"
+#include "scene/resources/environment.h"
+#include "scene/resources/material.h"
+#endif
+
 void {class_name}::_bind_methods() {{
 }}
 
@@ -252,6 +268,65 @@ void {class_name}::_notification(int p_what) {{
 }}
 
 void {class_name}::_ready() {{
+\tMeshInstance3D *cube = Object::cast_to<MeshInstance3D>(get_node_or_null(NodePath("Cube")));
+\tif (cube) {{
+\t\tRef<StandardMaterial3D> cube_material;
+\t\tcube_material.instantiate();
+\t\tcube_material->set_albedo(Color(0.18, 0.38, 0.92));
+\t\tcube_material->set_metallic(0.18);
+\t\tcube_material->set_roughness(0.14);
+\t\tcube_material->set_emission(Color(0.20, 0.55, 1.0));
+\t\tcube_material->set_emission_energy_multiplier(3.5);
+\t\tcube->set_material_override(cube_material);
+\t}}
+
+\tif (!get_node_or_null(NodePath("Ground"))) {{
+\t\tMeshInstance3D *ground = memnew(MeshInstance3D);
+\t\tground->set_name("Ground");
+\t\tRef<PlaneMesh> ground_mesh;
+\t\tground_mesh.instantiate();
+\t\tground_mesh->set_size(Vector2(12.0, 12.0));
+\t\tground->set_mesh(ground_mesh);
+\t\tground->set_position(Vector3(0.0, -0.5, 0.0));
+
+\t\tRef<StandardMaterial3D> ground_material;
+\t\tground_material.instantiate();
+\t\tground_material->set_albedo(Color(0.07, 0.08, 0.10));
+\t\tground_material->set_roughness(0.94);
+\t\tground->set_material_override(ground_material);
+\t\tadd_child(ground);
+\t}}
+
+\tDirectionalLight3D *light = Object::cast_to<DirectionalLight3D>(get_node_or_null(NodePath("DirectionalLight3D")));
+\tif (light) {{
+\t\tlight->set_shadow(true);
+\t\tlight->set_shadow_mode(DirectionalLight3D::SHADOW_PARALLEL_4_SPLITS);
+\t}}
+
+\tWorldEnvironment *world_environment = Object::cast_to<WorldEnvironment>(get_node_or_null(NodePath("WorldEnvironment")));
+\tif (!world_environment) {{
+\t\tworld_environment = memnew(WorldEnvironment);
+\t\tworld_environment->set_name("WorldEnvironment");
+\t\tadd_child(world_environment);
+\t}}
+
+\tRef<Environment> environment;
+\tenvironment.instantiate();
+\tenvironment->set_background(Environment::BG_COLOR);
+\tenvironment->set_bg_color(Color(0.03, 0.04, 0.06));
+\tenvironment->set_ambient_source(Environment::AMBIENT_SOURCE_COLOR);
+\tenvironment->set_ambient_light_color(Color(0.20, 0.22, 0.28));
+\tenvironment->set_ambient_light_energy(1.0);
+\tenvironment->set_glow_enabled(true);
+\tenvironment->set_glow_level(0, 1.0);
+\tenvironment->set_glow_level(1, 0.8);
+\tenvironment->set_glow_normalized(true);
+\tenvironment->set_glow_intensity(0.8);
+\tenvironment->set_glow_strength(1.1);
+\tenvironment->set_glow_mix(0.2);
+\tenvironment->set_glow_bloom(0.15);
+\tworld_environment->set_environment(environment);
+
 \tset_process(true);
 }}
 
