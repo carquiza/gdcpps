@@ -18,6 +18,7 @@ TOOL_CHECKS = [
 ]
 
 ENV_CHECKS = [
+    ("GDCPPS_HOME", "required by generated project launcher scripts"),
     ("ANDROID_SDK_ROOT", "required for Android builds"),
     ("ANDROID_HOME", "legacy Android SDK variable; accepted if SDK root is unset"),
     ("ANDROID_NDK_ROOT", "required for Android native builds"),
