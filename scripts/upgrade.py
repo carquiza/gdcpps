@@ -44,8 +44,8 @@ def run(project_dir: str) -> int:
 
     # --- Infrastructure files: always overwrite ---
     infrastructure: list[tuple[Path, str]] = [
-        (project_path / "gdcpps.bat", _launcher_bat_text(str(repo_root))),
-        (project_path / "gdcpps.sh", _launcher_sh_text(str(repo_root))),
+        (project_path / "gdcpps.bat", _launcher_bat_text()),
+        (project_path / "gdcpps.sh", _launcher_sh_text()),
         (project_path / ".gdcpps" / "README.txt", _bootstrap_note_text()),
         (project_path / "module" / "config.py", _module_config_text()),
         (project_path / "module" / "SCsub", _module_scsub_text(module_name)),
