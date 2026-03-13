@@ -466,6 +466,52 @@ Planned next steps:
 """
 
 
+def _launcher_bat_text(gdcpps_fallback: str) -> str:
+    escaped = gdcpps_fallback.replace("/", "\\")
+    return f"""@echo off
+setlocal
+
+if defined GDCPPS_HOME (
+    set "GDCPPS_DIR=%GDCPPS_HOME%"
+) else (
+    echo [gdcpps] GDCPPS_HOME is not set; using fallback: {escaped} 1>&2
+    set "GDCPPS_DIR={escaped}"
+)
+
+set "LAUNCHER=%GDCPPS_DIR%\\gdcpps.bat"
+if not exist "%LAUNCHER%" (
+    echo [gdcpps] error: launcher not found at %LAUNCHER% 1>&2
+    exit /b 1
+)
+
+call "%LAUNCHER%" --project "%~dp0." %*
+exit /b %ERRORLEVEL%
+"""
+
+
+def _launcher_sh_text(gdcpps_fallback: str) -> str:
+    return f"""#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+if [ -n "${{GDCPPS_HOME:-}}" ]; then
+    GDCPPS_DIR="$GDCPPS_HOME"
+else
+    echo "[gdcpps] GDCPPS_HOME is not set; using fallback: {gdcpps_fallback}" >&2
+    GDCPPS_DIR="{gdcpps_fallback}"
+fi
+
+LAUNCHER="$GDCPPS_DIR/gdcpps.sh"
+if [ ! -f "$LAUNCHER" ]; then
+    echo "[gdcpps] error: launcher not found at $LAUNCHER" >&2
+    exit 1
+fi
+
+exec "$LAUNCHER" --project "$SCRIPT_DIR" "$@"
+"""
+
+
 def run(name: str, project_dir: str | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[1]
     versions = _load_versions(repo_root)
@@ -484,6 +530,8 @@ def run(name: str, project_dir: str | None = None) -> int:
     _write_text(destination / "gdcpps.yaml", _manifest_text(name, godot_version))
     _write_text(destination / ".gitignore", _dirs_file_text())
     _write_text(destination / ".gdcpps" / "README.txt", _bootstrap_note_text())
+    _write_text(destination / "gdcpps.bat", _launcher_bat_text(str(repo_root)))
+    _write_text(destination / "gdcpps.sh", _launcher_sh_text(str(repo_root)))
 
     _write_text(destination / "project" / "project.godot", _project_godot_text(name, godot_version))
     _write_text(destination / "project" / "main.tscn", _main_tscn_text(name, class_name))

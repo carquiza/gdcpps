@@ -10,6 +10,7 @@ import doctor as doctor_cmd
 import init as init_cmd
 import render_profile as render_profile_cmd
 import run as run_cmd
+import upgrade as upgrade_cmd
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -85,6 +86,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Check host tools and environment variables relevant to gdcpps.",
     )
 
+    upgrade_parser = subparsers.add_parser(
+        "upgrade",
+        help="Update infrastructure files in an existing scaffolded project.",
+    )
+    upgrade_parser.add_argument(
+        "--project",
+        dest="project_dir",
+        default=".",
+        help="Path to the scaffolded project. Defaults to the current directory.",
+    )
+
     run_parser = subparsers.add_parser(
         "run",
         help="Run a built scaffolded project.",
@@ -116,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
             return render_profile_cmd.run(args.project_dir, args.platform, args.out_path)
         if args.command == "doctor":
             return doctor_cmd.run()
+        if args.command == "upgrade":
+            return upgrade_cmd.run(args.project_dir)
         if args.command == "run":
             return run_cmd.run(args.project_dir, args.mode, args.platform)
     except Exception as exc:
