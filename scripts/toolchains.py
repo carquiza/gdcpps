@@ -13,10 +13,15 @@ def find_emsdk_root() -> Path | None:
     if env_root:
         candidates.append(Path(env_root))
 
-    candidates.append(Path(r"D:\Source\emsdk"))
+    if os.name == "nt":
+        candidates.append(Path(r"D:\Source\emsdk"))
+    else:
+        repo_root = Path(__file__).resolve().parent.parent
+        candidates.append(repo_root.parent / "emsdk")
 
+    emcc_name = "emcc.bat" if os.name == "nt" else "emcc"
     for candidate in candidates:
-        emcc = candidate / "upstream" / "emscripten" / "emcc.bat"
+        emcc = candidate / "upstream" / "emscripten" / emcc_name
         if emcc.exists():
             return candidate.resolve()
     return None

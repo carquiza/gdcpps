@@ -49,7 +49,7 @@ def _web_env() -> dict[str, str]:
     env = emsdk_env()
     if env is None:
         raise EnvironmentError(
-            "Web build requires emcc in PATH or a valid EMSDK installation at EMSDK or D:\\Source\\emsdk."
+            "Web build requires emcc in PATH or a valid EMSDK installation (set the EMSDK environment variable)."
         )
     return env
 
