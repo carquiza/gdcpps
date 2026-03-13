@@ -484,7 +484,7 @@ if not exist "%LAUNCHER%" (
     exit /b 1
 )
 
-call "%LAUNCHER%" --project "%~dp0." %*
+call "%LAUNCHER%" %* --project "%~dp0."
 exit /b %ERRORLEVEL%
 """
 
@@ -508,7 +508,7 @@ if [ ! -f "$LAUNCHER" ]; then
     exit 1
 fi
 
-exec "$LAUNCHER" --project "$SCRIPT_DIR" "$@"
+exec "$LAUNCHER" "$@" --project "$SCRIPT_DIR"
 """
 
 
