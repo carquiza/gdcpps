@@ -112,8 +112,8 @@ Both debug and module builds should consume the same resolved build-extension mo
 
 That means:
 
-- debug SConstruct generation reads `build.shared` and `build.debug`
-- module `SCsub` generation reads `build.shared` and `build.module`
+- debug SConstruct generation reads `build.shared`, `build.debug`, `platforms.<platform>.build.shared`, and `platforms.<platform>.build.debug`
+- module `SCsub` generation reads `build.shared`, `build.module`, `platforms.<platform>.build.shared`, and `platforms.<platform>.build.module`
 - common path resolution happens in one Python helper inside `gdcpps`
 - relative paths resolve from the consumer project root
 
@@ -123,21 +123,32 @@ For module builds, hooked source files are compiled into explicit object targets
 
 ## Platform Overrides
 
-Platform-specific build inputs should come after the base model is stable.
+Platform-specific build inputs are supported for the same hook surface as the top-level build model.
 
-Recommended future shape:
+Implemented shape:
 
 ```yaml
 platforms:
   windows:
     build:
+      shared:
+        extra_include_dirs: []
+        extra_source_globs: []
+        defines: []
+        cxxflags: []
       debug:
-        lib_dirs: []
+        extra_include_dirs: []
+        extra_source_globs: []
+        defines: []
+        cxxflags: []
       module:
-        lib_dirs: []
+        extra_include_dirs: []
+        extra_source_globs: []
+        defines: []
+        cxxflags: []
 ```
 
-Do not start with this unless a real consumer needs it. The first implementation should stay small.
+Platform build sections are merged after the top-level `build.shared` and `build.<mode>` sections for the active target platform.
 
 ## Example: Monorepo Shared Simulation Code
 
@@ -152,13 +163,26 @@ build:
       - ../src/core/**/*.cpp
       - ../src/sim/**/*.cpp
 
-  debug:
-    extra_include_dirs:
-      - ../build/windows-debug/vcpkg_installed/x64-windows/include
+platforms:
+  windows:
+    build:
+      debug:
+        extra_include_dirs:
+          - ../build/windows-debug/vcpkg_installed/x64-windows/include
+      module:
+        extra_include_dirs:
+          - ../build/windows-release/vcpkg_installed/x64-windows/include
 
-  module:
-    extra_include_dirs:
-      - ../build/windows-debug/vcpkg_installed/x64-windows/include
+  linux:
+    build:
+      debug:
+        extra_include_dirs:
+          - ../build/linux-debug/vcpkg_installed/x64-linux/include
+          - ../build/linux-debug/vcpkg_installed/arm64-linux/include
+      module:
+        extra_include_dirs:
+          - ../build/linux-release/vcpkg_installed/x64-linux/include
+          - ../build/linux-release/vcpkg_installed/arm64-linux/include
 ```
 
 This is the exact kind of workflow `gdcpps` should support natively.

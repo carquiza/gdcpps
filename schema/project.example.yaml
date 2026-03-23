@@ -3,6 +3,12 @@ project:
   module_name: samplegame
   godot_version: 4.5.1
 
+build:
+  cpp_standard: c++20
+  shared:
+    extra_include_dirs: []
+    extra_source_globs: []
+
 profiles:
   base: desktop-default
   web: web-small
@@ -19,6 +25,11 @@ platforms:
   windows:
     enable:
       - physics_3d
+    build:
+      debug:
+        extra_include_dirs: []
+      module:
+        extra_include_dirs: []
   web:
     disable:
       - physics_2d

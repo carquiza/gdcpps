@@ -482,7 +482,58 @@ if not exist "%LAUNCHER%" (
     exit /b 1
 )
 
-call "%LAUNCHER%" %* --project "%~dp0."
+:set_script_dir
+set "PROJECT_DIR=%~dp0."
+
+if "%~1"=="" (
+    call "%LAUNCHER%" --help
+    exit /b %ERRORLEVEL%
+)
+
+set "COMMAND=%~1"
+if /I "%COMMAND%"=="deps" if /I "%~2"=="sync" goto deps_sync
+
+shift
+set "ARGS="
+:collect_args
+if "%~1"=="" goto dispatch
+set ARGS=%ARGS% "%~1"
+shift
+goto collect_args
+
+:deps_sync
+shift
+shift
+set "ARGS="
+:collect_deps_args
+if "%~1"=="" goto dispatch_deps
+set ARGS=%ARGS% "%~1"
+shift
+goto collect_deps_args
+
+:dispatch_deps
+call "%LAUNCHER%" deps sync "%PROJECT_DIR%" %ARGS%
+exit /b %ERRORLEVEL%
+
+:dispatch
+if /I "%COMMAND%"=="build" (
+    call "%LAUNCHER%" build --project "%PROJECT_DIR%" %ARGS%
+    exit /b %ERRORLEVEL%
+)
+if /I "%COMMAND%"=="run" (
+    call "%LAUNCHER%" run --project "%PROJECT_DIR%" %ARGS%
+    exit /b %ERRORLEVEL%
+)
+if /I "%COMMAND%"=="upgrade" (
+    call "%LAUNCHER%" upgrade --project "%PROJECT_DIR%" %ARGS%
+    exit /b %ERRORLEVEL%
+)
+if /I "%COMMAND%"=="render-profile" (
+    call "%LAUNCHER%" render-profile "%PROJECT_DIR%" %ARGS%
+    exit /b %ERRORLEVEL%
+)
+
+call "%LAUNCHER%" %COMMAND% %ARGS%
 exit /b %ERRORLEVEL%
 """
 
@@ -505,7 +556,29 @@ if [ ! -f "$LAUNCHER" ]; then
     exit 1
 fi
 
-exec "$LAUNCHER" "$@" --project "$SCRIPT_DIR"
+if [ "$#" -eq 0 ]; then
+    exec "$LAUNCHER" --help
+fi
+
+COMMAND=$1
+shift
+
+case "$COMMAND" in
+    build|run|upgrade)
+        exec "$LAUNCHER" "$COMMAND" --project "$SCRIPT_DIR" "$@"
+        ;;
+    render-profile)
+        exec "$LAUNCHER" "$COMMAND" "$SCRIPT_DIR" "$@"
+        ;;
+    deps)
+        if [ "${1:-}" = "sync" ]; then
+            shift
+            exec "$LAUNCHER" deps sync "$SCRIPT_DIR" "$@"
+        fi
+        ;;
+esac
+
+exec "$LAUNCHER" "$COMMAND" "$@"
 """
 
 

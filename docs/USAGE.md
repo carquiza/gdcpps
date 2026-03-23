@@ -166,15 +166,41 @@ build:
   shared:
     extra_include_dirs: []
     extra_source_globs: []
+    defines: []
+    cxxflags: []
   debug:
     extra_include_dirs: []
     extra_source_globs: []
+    defines: []
+    cxxflags: []
   module:
     extra_include_dirs: []
     extra_source_globs: []
+    defines: []
+    cxxflags: []
+
+platforms:
+  windows:
+    build:
+      shared:
+        extra_include_dirs: []
+        extra_source_globs: []
+        defines: []
+        cxxflags: []
+      debug:
+        extra_include_dirs: []
+        extra_source_globs: []
+        defines: []
+        cxxflags: []
+      module:
+        extra_include_dirs: []
+        extra_source_globs: []
+        defines: []
+        cxxflags: []
 ```
 
 These fields are applied to the generated debug GDExtension build glue and the generated module build glue.
+Platform-specific build sections are merged after the top-level `build.shared` and `build.<mode>` sections for the active target platform.
 
 For release/module builds, `gdcpps` now assigns explicit object targets for hooked external sources so temporary `.obj` files stay under the Godot build tree instead of being emitted next to the original source files.
 
@@ -186,7 +212,7 @@ Typical use cases:
 - shared simulation or engine code compiled into both debug and release builds
 - project-specific include roots and C++ standard settings
 
-Future expansions such as defines, library dirs, link flags, and optional Python hook files are still planned.
+Future expansions such as library dirs, link flags, and optional Python hook files are still planned.
 
 ## Feature Profiles
 

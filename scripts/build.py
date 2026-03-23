@@ -167,6 +167,26 @@ def _build_section(manifest: dict, section_name: str) -> dict:
     return section if isinstance(section, dict) else {}
 
 
+def _platform_build_section(manifest: dict, platform: str | None, section_name: str) -> dict:
+    if not platform:
+        return {}
+
+    platforms = manifest.get("platforms", {})
+    if not isinstance(platforms, dict):
+        return {}
+
+    platform_cfg = platforms.get(platform, {})
+    if not isinstance(platform_cfg, dict):
+        return {}
+
+    build = platform_cfg.get("build", {})
+    if not isinstance(build, dict):
+        return {}
+
+    section = build.get(section_name, {})
+    return section if isinstance(section, dict) else {}
+
+
 def _cpp_standard(manifest: dict) -> str | None:
     build = manifest.get("build", {})
     if not isinstance(build, dict):
@@ -177,24 +197,44 @@ def _cpp_standard(manifest: dict) -> str | None:
     return cpp_standard
 
 
-def _build_extensions(project_root: Path, manifest: dict, mode: str) -> dict[str, object]:
+def _build_extensions(project_root: Path, manifest: dict, mode: str, platform: str | None = None) -> dict[str, object]:
     shared = _build_section(manifest, "shared")
     mode_build = _build_section(manifest, mode)
+    platform_shared = _platform_build_section(manifest, platform, "shared")
+    platform_mode = _platform_build_section(manifest, platform, mode)
 
     include_dirs = _merge_string_lists(
         shared.get("include_dirs"),
         shared.get("extra_include_dirs"),
         mode_build.get("include_dirs"),
         mode_build.get("extra_include_dirs"),
+        platform_shared.get("include_dirs"),
+        platform_shared.get("extra_include_dirs"),
+        platform_mode.get("include_dirs"),
+        platform_mode.get("extra_include_dirs"),
     )
     source_globs = _merge_string_lists(
         shared.get("source_globs"),
         shared.get("extra_source_globs"),
         mode_build.get("source_globs"),
         mode_build.get("extra_source_globs"),
+        platform_shared.get("source_globs"),
+        platform_shared.get("extra_source_globs"),
+        platform_mode.get("source_globs"),
+        platform_mode.get("extra_source_globs"),
     )
-    defines = _merge_string_lists(shared.get("defines"), mode_build.get("defines"))
-    cxxflags = _merge_string_lists(shared.get("cxxflags"), mode_build.get("cxxflags"))
+    defines = _merge_string_lists(
+        shared.get("defines"),
+        mode_build.get("defines"),
+        platform_shared.get("defines"),
+        platform_mode.get("defines"),
+    )
+    cxxflags = _merge_string_lists(
+        shared.get("cxxflags"),
+        mode_build.get("cxxflags"),
+        platform_shared.get("cxxflags"),
+        platform_mode.get("cxxflags"),
+    )
 
     return {
         "cpp_standard": _cpp_standard(manifest),
@@ -281,9 +321,9 @@ def _write_module_scsub_shim(project_root: Path) -> None:
     scsub_path.write_text(_module_scsub_shim_text(), encoding="utf-8", newline="\n")
 
 
-def _write_module_build_script(project_root: Path, module_name: str, manifest: dict) -> Path:
+def _write_module_build_script(project_root: Path, module_name: str, manifest: dict, platform: str) -> Path:
     upper_name = module_name.upper()
-    build_extensions = _build_extensions(project_root, manifest, "module")
+    build_extensions = _build_extensions(project_root, manifest, "module", platform)
     flag_block = _scons_flag_block("env_project", build_extensions)
     if flag_block:
         flag_block = _indent_block(flag_block, "    ") + "\n"
@@ -377,10 +417,10 @@ def _ensure_project_runtime_files(project_root: Path, module_name: str, debug_mo
         extension_list.unlink()
 
 
-def _write_debug_sconstruct(project_root: Path, godot_cpp_dir: Path, module_name: str) -> Path:
+def _write_debug_sconstruct(project_root: Path, godot_cpp_dir: Path, module_name: str, platform: str) -> Path:
     upper_name = module_name.upper()
     manifest = load_manifest(project_root)
-    build_extensions = _build_extensions(project_root, manifest, "debug")
+    build_extensions = _build_extensions(project_root, manifest, "debug", platform)
     flag_block = _scons_flag_block("env", build_extensions)
     if flag_block:
         flag_block = flag_block + "\n"
@@ -474,8 +514,8 @@ def _build_debug(project_root: Path, platform: str, deps_state: dict, module_nam
 
     _ensure_project_runtime_files(project_root, module_name, debug_mode=True)
     _write_module_scsub_shim(project_root)
-    _write_module_build_script(project_root, module_name, manifest)
-    sconstruct_path = _write_debug_sconstruct(project_root, godot_cpp_dir, module_name)
+    _write_module_build_script(project_root, module_name, manifest, platform)
+    sconstruct_path = _write_debug_sconstruct(project_root, godot_cpp_dir, module_name, platform)
 
     cmd = [
         sys.executable,
@@ -575,7 +615,7 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
 
     _ensure_project_runtime_files(project_root, module_name, debug_mode=False)
     _write_module_scsub_shim(project_root)
-    _write_module_build_script(project_root, module_name, manifest)
+    _write_module_build_script(project_root, module_name, manifest, platform)
     profile_path = _render_release_profile(project_root, platform)
 
     cmd = [
