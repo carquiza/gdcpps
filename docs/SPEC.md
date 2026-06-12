@@ -168,12 +168,9 @@ The intended detailed design lives in `docs/HOOKS.md`.
 Currently implemented manifest fields are:
 
 - `build.cpp_standard`
-- `build.shared.extra_include_dirs`
-- `build.shared.extra_source_globs`
-- `build.debug.extra_include_dirs`
-- `build.debug.extra_source_globs`
-- `build.module.extra_include_dirs`
-- `build.module.extra_source_globs`
+- `build.shared`, `build.debug`, and `build.module`, each supporting
+  `extra_include_dirs`, `extra_source_globs`, `defines`, and `cxxflags`
+- the same fields under `platforms.<platform>.build.shared|debug|module`
 
 ## Planned User Experience
 
@@ -215,7 +212,7 @@ gdcpps/
     desktop-default.py
     mobile-default.py
   schema/
-    project.schema.yaml
+    project.example.yaml
   examples/
     spinning_cube/
 ```

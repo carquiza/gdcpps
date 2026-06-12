@@ -2,7 +2,7 @@
 
 ## Status
 
-This document describes the current `gdcpps` workflow. `init`, `deps sync`, `render-profile`, `doctor`, and the Windows/Web `build` paths are implemented in an early but usable form. Linux, macOS, iOS, and Android are still planned.
+This document describes the current `gdcpps` workflow. `init`, `deps sync`, `render-profile`, `doctor`, and the Windows/Linux/Web `build` paths are implemented in an early but usable form. macOS, iOS, and Android are still planned.
 
 ## Intended Workflow
 
@@ -35,6 +35,8 @@ gdcpps deps sync
 gdcpps deps sync path/to/project --godot-source D:\Source\godot --godot-cpp-source D:\Source\AIResearch\gdcpp\godot-cpp
 ```
 
+Without a project path, `deps sync` uses the current directory.
+
 This should:
 
 - fetch or update the pinned Godot source revision
@@ -59,6 +61,7 @@ Expected behavior:
 
 ```text
 gdcpps build debug windows --project path/to/project
+gdcpps build debug linux --project path/to/project
 gdcpps build debug web --project path/to/project
 ```
 
@@ -72,6 +75,7 @@ Expected behavior:
 
 ```text
 gdcpps build release windows --project path/to/project
+gdcpps build release linux --project path/to/project
 gdcpps build release web --project path/to/project
 ```
 
@@ -87,7 +91,8 @@ Current status:
 - Windows release is implemented and validated against the embedded-module path
 - Web debug is implemented and validated with Emscripten
 - Web release is implemented and validated with the `web-small` default profile
-- Linux, macOS, iOS, and Android build orchestration are still planned
+- Linux debug and release are implemented; broader validation is still in progress
+- macOS, iOS, and Android build orchestration are still planned
 
 ### Render a Godot Profile
 
@@ -118,9 +123,9 @@ Expected behavior:
 
 Current status:
 
-- `run debug windows` is implemented and requires `GODOT_BIN` or a Godot executable on `PATH`
-- `run release windows` is implemented and launches the packaged executable from `build/windows/release`
-- Web, Linux, macOS, iOS, and Android run helpers are still planned
+- `run debug` is implemented for windows and linux and requires `GODOT_BIN` or a Godot executable on `PATH`
+- `run release` is implemented for windows and linux and launches the packaged executable from `build/<platform>/release`
+- Web, macOS, iOS, and Android run helpers are still planned
 
 ## Consumer Manifest
 
@@ -201,6 +206,7 @@ platforms:
 
 These fields are applied to the generated debug GDExtension build glue and the generated module build glue.
 Platform-specific build sections are merged after the top-level `build.shared` and `build.<mode>` sections for the active target platform.
+`include_dirs` and `source_globs` are accepted as aliases for `extra_include_dirs` and `extra_source_globs`.
 
 For release/module builds, `gdcpps` now assigns explicit object targets for hooked external sources so temporary `.obj` files stay under the Godot build tree instead of being emitted next to the original source files.
 
@@ -250,7 +256,7 @@ Expected characteristics:
 
 Current implementation priorities are:
 
-1. Expand the validated build matrix to Linux and macOS.
+1. Finish validating Linux and expand the build matrix to macOS.
 2. Add Android and iOS pipelines plus signing/export guidance.
 3. Harden diagnostics, examples, and smoke tests.
 4. Add CI strategy and onboarding documentation.

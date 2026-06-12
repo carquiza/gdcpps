@@ -60,14 +60,13 @@ build:
 Phase 1 implemented fields:
 
 - `build.cpp_standard`
-- `build.shared.extra_include_dirs`
-- `build.shared.extra_source_globs`
-- `build.debug.extra_include_dirs`
-- `build.debug.extra_source_globs`
-- `build.module.extra_include_dirs`
-- `build.module.extra_source_globs`
+- `build.shared`, `build.debug`, and `build.module`, each supporting
+  `extra_include_dirs`, `extra_source_globs`, `defines`, and `cxxflags`
+- the same fields under `platforms.<platform>.build.shared|debug|module`
 
-That is enough to solve the LockstepWorld monorepo case cleanly. The broader `include_dirs` / `defines` / `libs` shape remains the recommended direction for later expansion.
+`include_dirs` and `source_globs` are accepted as aliases for `extra_include_dirs` and `extra_source_globs`.
+
+That is enough to solve the LockstepWorld monorepo case cleanly. The remaining `libs` / `lib_dirs` / `linkflags` shape is the recommended direction for later expansion.
 
 ## Layer 2: Optional Python Hook File
 

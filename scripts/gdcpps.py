@@ -4,13 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-import build as build_cmd
-import deps as deps_cmd
-import doctor as doctor_cmd
-import init as init_cmd
-import render_profile as render_profile_cmd
-import run as run_cmd
-import upgrade as upgrade_cmd
+# Command modules are imported lazily in main() so commands like `doctor`
+# still work when optional dependencies (e.g. PyYAML) are missing.
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,7 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
         "sync",
         help="Clone or update pinned source dependencies for a project.",
     )
-    deps_sync_parser.add_argument("project_dir", help="Path to the scaffolded project.")
+    deps_sync_parser.add_argument(
+        "project_dir",
+        nargs="?",
+        default=".",
+        help="Path to the scaffolded project. Defaults to the current directory.",
+    )
     deps_sync_parser.add_argument(
         "--godot-source",
         dest="godot_source",
@@ -119,18 +119,32 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "init":
+            import init as init_cmd
+
             return init_cmd.run(args.name, args.project_dir)
         if args.command == "deps" and args.deps_command == "sync":
+            import deps as deps_cmd
+
             return deps_cmd.run(args.project_dir, args.godot_source, args.godot_cpp_source)
         if args.command == "build":
+            import build as build_cmd
+
             return build_cmd.run(args.project_dir, args.mode, args.platform)
         if args.command == "render-profile":
+            import render_profile as render_profile_cmd
+
             return render_profile_cmd.run(args.project_dir, args.platform, args.out_path)
         if args.command == "doctor":
+            import doctor as doctor_cmd
+
             return doctor_cmd.run()
         if args.command == "upgrade":
+            import upgrade as upgrade_cmd
+
             return upgrade_cmd.run(args.project_dir)
         if args.command == "run":
+            import run as run_cmd
+
             return run_cmd.run(args.project_dir, args.mode, args.platform)
     except Exception as exc:
         print(f"error: {exc}")

@@ -214,7 +214,7 @@ using namespace godot;
 
 
 def _game_header_text(module_name: str, class_name: str) -> str:
-    upper_name = module_name.upper()
+    _ = module_name
     return f"""#pragma once
 
 #include "../include/gdcpp.h"

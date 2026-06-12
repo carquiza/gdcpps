@@ -461,16 +461,6 @@ Default(library)
     return sconstruct_path
 
 
-def _copy_matches(pattern: str, destination: Path) -> list[Path]:
-    destination.mkdir(parents=True, exist_ok=True)
-    copied: list[Path] = []
-    for source in destination.parent.parent.parent.glob(pattern):
-        target = destination / source.name
-        shutil.copy2(source, target)
-        copied.append(target)
-    return copied
-
-
 def _copy_files(sources: list[Path], destination: Path) -> list[Path]:
     if destination.exists():
         try:

@@ -58,6 +58,12 @@ def _scons_status() -> str:
     return "[miss] tool:scons        not found (required for Godot and GDExtension builds)"
 
 
+def _pyyaml_status() -> str:
+    if find_spec("yaml") is not None:
+        return "[ok]   pkg:pyyaml        installed"
+    return "[miss] pkg:pyyaml        not found (required to load gdcpps.yaml manifests)"
+
+
 def _env_status(name: str, note: str) -> str:
     value = os.environ.get(name)
     if value:
@@ -87,6 +93,7 @@ def run() -> int:
     print("")
     print("Tools")
     print(_scons_status())
+    print(_pyyaml_status())
     print(_emscripten_status())
     for label, exe_name, note in TOOL_CHECKS:
         print(_tool_status(label, exe_name, note))
