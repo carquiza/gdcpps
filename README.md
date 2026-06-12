@@ -24,3 +24,13 @@ Current hook support is manifest-driven:
 Release/module builds place hooked external object files under the Godot build tree instead of beside the original source files.
 
 Repo-local launchers are available as `gdcpps.bat` and `gdcpps.sh` in the repository root.
+
+## Testing
+
+Unit tests live in `tests/` and need only the standard library (manifest-loading tests additionally need PyYAML):
+
+```text
+python -m unittest discover -s tests
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the tests plus an `init`/`render-profile`/`doctor` smoke pass on Windows, Linux, and macOS. Engine builds are out of CI scope for now.

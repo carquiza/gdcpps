@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-try:
-    import yaml
-except ImportError as exc:  # pragma: no cover - exercised by CLI error handling
-    raise RuntimeError("PyYAML is required to load gdcpps.yaml") from exc
+
+def _load_yaml_module():
+    # Imported lazily so flag resolution stays usable (and testable) when
+    # PyYAML is not installed; only manifest loading needs it.
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("PyYAML is required to load gdcpps.yaml") from exc
+    return yaml
 
 
 PROFILE_DEFAULTS = {
@@ -84,6 +89,7 @@ FEATURE_FLAG_MAP = {
 
 
 def load_manifest(project_root: Path) -> dict:
+    yaml = _load_yaml_module()
     manifest_path = project_root / "gdcpps.yaml"
     with manifest_path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
@@ -106,15 +112,20 @@ def _get_profile_name(manifest: dict, platform: str) -> str:
 
 
 def _collect_feature_lists(manifest: dict, platform: str) -> tuple[list[str], list[str]]:
-    features = manifest.get("features", {})
-    platforms = manifest.get("platforms", {})
-    platform_cfg = platforms.get(platform, {}) if isinstance(platforms, dict) else {}
+    # Empty YAML sections parse to None, so guard every level.
+    features = manifest.get("features")
+    if not isinstance(features, dict):
+        features = {}
+    platforms = manifest.get("platforms")
+    platform_cfg = platforms.get(platform) if isinstance(platforms, dict) else None
+    if not isinstance(platform_cfg, dict):
+        platform_cfg = {}
 
-    enabled = list(features.get("enable", []))
-    disabled = list(features.get("disable", []))
+    enabled = list(features.get("enable") or [])
+    disabled = list(features.get("disable") or [])
 
-    enabled.extend(platform_cfg.get("enable", []))
-    disabled.extend(platform_cfg.get("disable", []))
+    enabled.extend(platform_cfg.get("enable") or [])
+    disabled.extend(platform_cfg.get("disable") or [])
     return enabled, disabled
 
 
