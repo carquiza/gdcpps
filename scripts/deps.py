@@ -78,7 +78,10 @@ def _resolve_source(source: str | None, default_url: str) -> str:
 
 
 def _checkout_ref(target_dir: Path, ref: str, safe_dirs: list[Path]) -> str:
-    candidates = [ref, f"origin/{ref}"]
+    # Try origin/<ref> first and check out detached: a plain `checkout <ref>`
+    # would reuse a stale local branch from a previous sync instead of the
+    # branch tip that was just fetched.
+    candidates = [f"origin/{ref}", ref]
     if not ref.endswith("-stable"):
         candidates.extend(
             [
@@ -94,7 +97,7 @@ def _checkout_ref(target_dir: Path, ref: str, safe_dirs: list[Path]) -> str:
         seen.add(candidate)
 
         completed = _try_git(
-            ["-C", str(target_dir), "checkout", candidate],
+            ["-C", str(target_dir), "checkout", "--detach", candidate],
             safe_dirs=safe_dirs,
         )
         if completed.returncode == 0:

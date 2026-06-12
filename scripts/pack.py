@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import struct
 import sys
@@ -18,6 +19,17 @@ ALLOWED_PROJECT_DATA_FILES = {
 IGNORED_PACK_FILES = {
     "gdcpp_log.txt",
 }
+
+
+def _godot_version_tuple() -> tuple[int, int, int]:
+    versions_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "versions.json")
+    with open(versions_path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    parts = [int(part) for part in str(data["godot"]["version"]).split(".")[:3]]
+    while len(parts) < 3:
+        parts.append(0)
+    return parts[0], parts[1], parts[2]
 
 
 def pad_to(n: int, alignment: int) -> int:
@@ -58,7 +70,7 @@ def write_pck(project_dir: str, output_path: str) -> str:
     with open(output_path, "wb") as handle:
         handle.write(struct.pack("<I", PACK_HEADER_MAGIC))
         handle.write(struct.pack("<I", PACK_FORMAT_VERSION))
-        handle.write(struct.pack("<III", 4, 5, 1))
+        handle.write(struct.pack("<III", *_godot_version_tuple()))
         handle.write(struct.pack("<I", PACK_REL_FILEBASE))
 
         file_base_pos = handle.tell()
