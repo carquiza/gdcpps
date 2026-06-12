@@ -113,7 +113,10 @@ Expected behavior:
 gdcpps run debug windows
 gdcpps run release windows
 gdcpps run release web
+gdcpps run debug windows -- --my-game-flag value
 ```
+
+Arguments after `--` are forwarded to the launched game process (in debug mode, appended after `--path <project>`; in release mode, passed to the packaged executable). Note that `--project` must come before the mode/platform positionals when forwarding extra arguments.
 
 Expected behavior:
 

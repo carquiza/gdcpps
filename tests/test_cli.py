@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import doctor
 import gdcpps
+import run as run_cmd
 import toolchains
 
 
@@ -33,6 +34,31 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.project_dir, ".")
         self.assertEqual(args.mode, "debug")
         self.assertEqual(args.platform, "windows")
+
+    def test_run_forwards_extra_args(self):
+        args = self.parser.parse_args(
+            ["run", "--project", "p", "debug", "windows", "--", "--screenshot", "out.png"]
+        )
+        self.assertEqual(args.project_dir, "p")
+        # argparse keeps or strips the leading "--" depending on Python
+        # version; _game_args normalizes both forms.
+        self.assertEqual(run_cmd._game_args(args.extra_args), ["--screenshot", "out.png"])
+
+    def test_run_without_extra_args(self):
+        args = self.parser.parse_args(["run", "debug", "windows"])
+        self.assertEqual(args.extra_args, [])
+
+
+class GameArgsTests(unittest.TestCase):
+    def test_strips_leading_separator(self):
+        self.assertEqual(run_cmd._game_args(["--", "--screenshot", "x.png"]), ["--screenshot", "x.png"])
+
+    def test_no_separator_passthrough(self):
+        self.assertEqual(run_cmd._game_args(["--fullscreen"]), ["--fullscreen"])
+
+    def test_none_and_empty(self):
+        self.assertEqual(run_cmd._game_args(None), [])
+        self.assertEqual(run_cmd._game_args([]), [])
 
 
 class MainTests(unittest.TestCase):

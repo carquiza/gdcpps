@@ -45,10 +45,18 @@ def _pick_release_executable(build_dir: Path) -> Path:
     raise FileNotFoundError(f"No release executable found in {build_dir}")
 
 
-def run(project_dir: str, mode: str, platform: str) -> int:
+def _game_args(extra_args: list[str] | None) -> list[str]:
+    args = list(extra_args or [])
+    if args and args[0] == "--":
+        args.pop(0)
+    return args
+
+
+def run(project_dir: str, mode: str, platform: str, extra_args: list[str] | None = None) -> int:
     project_root = Path(project_dir).resolve()
     manifest = load_manifest(project_root)
     project_name = str(manifest.get("project", {}).get("name", project_root.name))
+    game_args = _game_args(extra_args)
 
     if platform not in {"linux", "windows"}:
         raise ValueError("`gdcpps run` currently supports the linux and windows platforms only.")
@@ -67,7 +75,7 @@ def run(project_dir: str, mode: str, platform: str) -> int:
                 f"No {missing_hint} found in {project_path / 'bin'}. Run `gdcpps build debug {platform} --project {project_root}` first."
             )
 
-        cmd = [_resolve_godot_bin(), "--path", str(project_path)]
+        cmd = [_resolve_godot_bin(), "--path", str(project_path)] + game_args
         print(f"Running debug project {project_name}: {' '.join(cmd)}")
         subprocess.run(cmd, check=True)
         return 0
@@ -76,7 +84,7 @@ def run(project_dir: str, mode: str, platform: str) -> int:
         build_dir = project_root / "build" / platform / "release"
         exe_path = _pick_release_executable(build_dir)
         print(f"Running release project {project_name}: {exe_path}")
-        subprocess.run([str(exe_path)], cwd=str(build_dir), check=True)
+        subprocess.run([str(exe_path)] + game_args, cwd=str(build_dir), check=True)
         return 0
 
     raise ValueError("`gdcpps run` currently supports debug and release modes only.")

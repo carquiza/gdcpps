@@ -109,6 +109,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=".",
         help="Path to the scaffolded project. Defaults to the current directory.",
     )
+    # REMAINDER starts capturing after the positionals, so --project must come
+    # before mode/platform (the generated launchers already pass it first).
+    run_parser.add_argument(
+        "extra_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments after -- are forwarded to the launched game.",
+    )
 
     return parser
 
@@ -145,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "run":
             import run as run_cmd
 
-            return run_cmd.run(args.project_dir, args.mode, args.platform)
+            return run_cmd.run(args.project_dir, args.mode, args.platform, args.extra_args)
     except Exception as exc:
         print(f"error: {exc}")
         return 1
