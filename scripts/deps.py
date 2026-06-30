@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -150,6 +151,12 @@ def run(
     godot_source: str | None = None,
     godot_cpp_source: str | None = None,
 ) -> int:
+    # Resolution order for each source: explicit --*-source flag, then the
+    # GODOT_SOURCE / GODOT_CPP_SOURCE env var (lets you point at a shared local
+    # tree once, e.g. ~/Source/godot), then the GitHub URL from versions.json.
+    godot_source = godot_source or os.environ.get("GODOT_SOURCE")
+    godot_cpp_source = godot_cpp_source or os.environ.get("GODOT_CPP_SOURCE")
+
     project_root = Path(project_dir).resolve()
     manifest_path = project_root / "gdcpps.yaml"
     if not manifest_path.exists():

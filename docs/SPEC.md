@@ -106,7 +106,7 @@ Initial target matrix for gdcpps:
 |---|---|---|---|
 | Windows | Yes | Yes | First-class early target |
 | Linux | Yes | Yes | First-class early target |
-| macOS | Planned | Yes | Requires Apple toolchain validation |
+| macOS | Yes | Yes | Requires Apple host/toolchain; release ships a sidecar .pck |
 | Web | Yes | Yes | Default profile should favor small size |
 | iOS | Planned | Yes | Requires Xcode and signing workflow design |
 | Android | Planned | Yes | Requires SDK/NDK integration and packaging |

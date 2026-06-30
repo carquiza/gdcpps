@@ -35,8 +35,10 @@ def run(project_dir: str) -> int:
 
     manifest = profile_resolver.load_manifest(project_path)
     project_section = manifest.get("project", {})
-    name = project_section["name"]
-    module_name = project_section.get("module_name", name)
+    # Older / hand-edited manifests may omit project.name or project.module_name;
+    # fall back gracefully so `upgrade` can still refresh infrastructure files.
+    module_name = project_section.get("module_name") or project_section.get("name") or project_path.name
+    name = project_section.get("name", module_name)
     class_name = "".join(part.capitalize() for part in module_name.split("_")) + "Main"
 
     versions = _load_versions(repo_root)

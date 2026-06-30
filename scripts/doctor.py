@@ -23,7 +23,8 @@ ENV_CHECKS = [
     ("ANDROID_HOME", "legacy Android SDK variable; accepted if SDK root is unset"),
     ("ANDROID_NDK_ROOT", "required for Android native builds"),
     ("EMSDK", "useful for locating Emscripten installation"),
-    ("GODOT_SOURCE", "optional override for local Godot source location"),
+    ("GODOT_SOURCE", "deps sync: clone Godot from this local tree instead of GitHub"),
+    ("GODOT_CPP_SOURCE", "deps sync: clone godot-cpp from this local tree instead of GitHub"),
     ("GODOT_BIN", "optional override for local Godot editor/runtime"),
 ]
 
@@ -80,6 +81,8 @@ def _host_notes() -> list[str]:
         notes.append("iOS and macOS release builds require an Apple host/toolchain.")
     elif system == "darwin":
         notes.append("Apple host detected; macOS/iOS targets can be validated here.")
+        if shutil.which("clang") is None:
+            notes.append("clang not found; install the Xcode command line tools (xcode-select --install) for macOS builds.")
     else:
         notes.append("Desktop and Web builds are expected to be primary on this host.")
 

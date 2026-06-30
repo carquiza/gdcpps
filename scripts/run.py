@@ -42,6 +42,14 @@ def _pick_release_executable(build_dir: Path) -> Path:
     if linux_candidates:
         return linux_candidates[0]
 
+    macos_candidates = [
+        path
+        for path in sorted(build_dir.glob("godot.macos*.template_release*"))
+        if path.is_file() and os.access(path, os.X_OK)
+    ]
+    if macos_candidates:
+        return macos_candidates[0]
+
     raise FileNotFoundError(f"No release executable found in {build_dir}")
 
 
@@ -58,14 +66,17 @@ def run(project_dir: str, mode: str, platform: str, extra_args: list[str] | None
     project_name = str(manifest.get("project", {}).get("name", project_root.name))
     game_args = _game_args(extra_args)
 
-    if platform not in {"linux", "windows"}:
-        raise ValueError("`gdcpps run` currently supports the linux and windows platforms only.")
+    if platform not in {"linux", "windows", "macos"}:
+        raise ValueError("`gdcpps run` currently supports the linux, windows, and macos platforms only.")
 
     if mode == "debug":
         project_path = project_root / "project"
         if platform == "windows":
             artifacts = list((project_path / "bin").glob("*.windows.template_debug*.dll"))
             missing_hint = "Windows debug GDExtension DLL"
+        elif platform == "macos":
+            artifacts = list((project_path / "bin").glob("*.macos.template_debug*.dylib"))
+            missing_hint = "macOS debug GDExtension dylib"
         else:
             artifacts = list((project_path / "bin").glob("*.linux.template_debug*.so"))
             missing_hint = "Linux debug GDExtension shared library"

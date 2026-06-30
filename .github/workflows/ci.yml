@@ -34,6 +34,8 @@ jobs:
         run: |
           python scripts/gdcpps.py init smoketest --dir "$RUNNER_TEMP/smoketest"
           python scripts/gdcpps.py render-profile "$RUNNER_TEMP/smoketest" windows
+          python scripts/gdcpps.py render-profile "$RUNNER_TEMP/smoketest" macos
           python scripts/gdcpps.py render-profile "$RUNNER_TEMP/smoketest" web
           grep -q 'optimize = "speed"' "$RUNNER_TEMP/smoketest/.gdcpps/generated/windows.profile.py"
+          grep -q 'optimize = "speed"' "$RUNNER_TEMP/smoketest/.gdcpps/generated/macos.profile.py"
           grep -q 'threads = "no"' "$RUNNER_TEMP/smoketest/.gdcpps/generated/web.profile.py"

@@ -33,7 +33,7 @@
 ## Phase 4
 
 - [x] Implement Linux debug and release builds.
-- [ ] Implement macOS debug and release builds.
+- [x] Implement macOS debug and release builds.
 - [ ] Validate platform-specific artifact naming and packaging.
 
 ## Phase 5

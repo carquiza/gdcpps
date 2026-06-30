@@ -134,7 +134,10 @@ class RunValidationTests(unittest.TestCase):
 
     def test_rejects_unknown_platform(self):
         with self.assertRaises(ValueError):
-            build.run(".", "debug", "macos")
+            build.run(".", "debug", "solaris")
+
+    def test_supported_platforms_include_macos(self):
+        self.assertIn("macos", build.SUPPORTED_PLATFORMS)
 
 
 if __name__ == "__main__":

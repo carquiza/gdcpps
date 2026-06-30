@@ -122,8 +122,8 @@ windows.debug.x86_64 = "res://bin/lib{module_name}.windows.template_debug.x86_64
 windows.release.x86_64 = "res://bin/lib{module_name}.windows.template_release.x86_64.dll"
 linux.debug.x86_64 = "res://bin/lib{module_name}.linux.template_debug.x86_64.so"
 linux.release.x86_64 = "res://bin/lib{module_name}.linux.template_release.x86_64.so"
-macos.debug = "res://bin/lib{module_name}.macos.template_debug.framework"
-macos.release = "res://bin/lib{module_name}.macos.template_release.framework"
+macos.debug = "res://bin/lib{module_name}.macos.template_debug.universal.dylib"
+macos.release = "res://bin/lib{module_name}.macos.template_release.universal.dylib"
 web.debug.wasm32 = "res://bin/lib{module_name}.web.template_debug.wasm32.wasm"
 web.release.wasm32 = "res://bin/lib{module_name}.web.template_release.wasm32.wasm"
 """
@@ -453,6 +453,9 @@ artifacts/
 *.lib
 *.exp
 *.pdb
+
+# macOS
+.DS_Store
 """
 
 

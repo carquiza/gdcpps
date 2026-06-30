@@ -1,10 +1,14 @@
 """Tests for dependency sync ref resolution against local git repos."""
 
+import io
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -87,6 +91,45 @@ class CheckoutRefTests(unittest.TestCase):
     def test_missing_ref_raises(self):
         with self.assertRaises(ValueError):
             deps._checkout_ref(self.tgt, "does-not-exist", [])
+
+
+class EnvSourceResolutionTests(unittest.TestCase):
+    def _project(self, tmp):
+        proj = Path(tmp) / "p"
+        proj.mkdir()
+        (proj / "gdcpps.yaml").write_text("project:\n  name: p\n", encoding="utf-8")
+        return proj
+
+    def _run_capturing_sources(self, project, env, **flags):
+        captured = {}
+
+        def fake_sync(name, spec, target_root, source_override):
+            captured[name] = source_override
+            return {"path": "x", "source": "y", "ref": spec["ref"], "revision": "z"}
+
+        with mock.patch.object(deps, "_sync_repo", fake_sync), mock.patch.object(
+            deps, "_write_state", lambda *a, **k: None
+        ), mock.patch.dict(os.environ, env, clear=False), redirect_stdout(io.StringIO()):
+            deps.run(str(project), **flags)
+        return captured
+
+    def test_env_vars_used_when_flags_absent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            captured = self._run_capturing_sources(
+                self._project(tmp),
+                {"GODOT_SOURCE": "/env/godot", "GODOT_CPP_SOURCE": "/env/gdcpp"},
+            )
+            self.assertEqual(captured["godot"], "/env/godot")
+            self.assertEqual(captured["godot_cpp"], "/env/gdcpp")
+
+    def test_flag_overrides_env(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            captured = self._run_capturing_sources(
+                self._project(tmp),
+                {"GODOT_SOURCE": "/env/godot"},
+                godot_source="/flag/godot",
+            )
+            self.assertEqual(captured["godot"], "/flag/godot")
 
 
 if __name__ == "__main__":

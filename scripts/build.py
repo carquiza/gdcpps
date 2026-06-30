@@ -14,7 +14,7 @@ from profile_resolver import load_manifest, render_profile, resolve_flags
 from toolchains import emsdk_env
 
 
-SUPPORTED_PLATFORMS = {"linux", "windows", "web"}
+SUPPORTED_PLATFORMS = {"linux", "macos", "windows", "web"}
 SUPPORTED_MODES = {"debug", "release"}
 
 
@@ -98,8 +98,8 @@ linux.debug.arm32 = "res://bin/lib{module_name}.linux.template_debug.arm32.so"
 linux.release.arm32 = "res://bin/lib{module_name}.linux.template_release.arm32.so"
 linux.debug.arm64 = "res://bin/lib{module_name}.linux.template_debug.arm64.so"
 linux.release.arm64 = "res://bin/lib{module_name}.linux.template_release.arm64.so"
-macos.debug = "res://bin/lib{module_name}.macos.template_debug.framework"
-macos.release = "res://bin/lib{module_name}.macos.template_release.framework"
+macos.debug = "res://bin/lib{module_name}.macos.template_debug.universal.dylib"
+macos.release = "res://bin/lib{module_name}.macos.template_release.universal.dylib"
 web.debug.threads.wasm32 = "res://bin/lib{module_name}.web.template_debug.wasm32.wasm"
 web.release.threads.wasm32 = "res://bin/lib{module_name}.web.template_release.wasm32.wasm"
 web.debug.wasm32 = "res://bin/lib{module_name}.web.template_debug.wasm32.nothreads.wasm"
@@ -537,6 +537,8 @@ def _copy_native_release_outputs(godot_dir: Path, destination: Path, platform: s
         sources = list(bin_dir.glob("godot.linuxbsd.template_release*")) + list(
             bin_dir.glob("godot.linux.template_release*")
         )
+    elif platform == "macos":
+        sources = list(bin_dir.glob("godot.macos.template_release*"))
     elif platform == "web":
         sources = list(bin_dir.glob("godot.web.template_release*.wasm")) + list(
             bin_dir.glob("godot.web.template_release*.js")
@@ -574,6 +576,17 @@ def _pack_linux_release(project_root: Path, build_dir: Path) -> None:
     executables = [path for path in sorted(build_dir.glob("godot.linux*.template_release*")) if path.is_file()]
     if not executables:
         raise FileNotFoundError(f"No Linux release executable found in {build_dir}")
+
+    for exe_path in executables:
+        pck_path = Path(str(exe_path) + ".pck")
+        pack.write_pck(str(project_dir), str(pck_path))
+
+
+def _pack_macos_release(project_root: Path, build_dir: Path) -> None:
+    project_dir = project_root / "project"
+    executables = [path for path in sorted(build_dir.glob("godot.macos*.template_release*")) if path.is_file()]
+    if not executables:
+        raise FileNotFoundError(f"No macOS release executable found in {build_dir}")
 
     for exe_path in executables:
         pck_path = Path(str(exe_path) + ".pck")
@@ -627,6 +640,8 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
         _pack_windows_release(project_root, destination)
     elif platform == "linux":
         _pack_linux_release(project_root, destination)
+    elif platform == "macos":
+        _pack_macos_release(project_root, destination)
     elif platform == "web":
         _pack_web_release(project_root, destination, project_name)
 
