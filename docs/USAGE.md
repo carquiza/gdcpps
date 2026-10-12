@@ -2,7 +2,7 @@
 
 ## Status
 
-This document describes the current `gdcpps` workflow. `init`, `deps sync`, `render-profile`, `doctor`, and the Windows/Linux/macOS/Web `build` paths are implemented in an early but usable form. iOS and Android are still planned.
+This document describes the current `gdcpps` workflow. `init`, `deps sync`, `render-profile`, `doctor`, and the Windows/Linux/macOS/Web `build` paths are implemented in an early but usable form, plus iOS release builds on macOS. Android is still planned.
 
 ## Intended Workflow
 
@@ -125,7 +125,41 @@ Current status:
 - Web release is implemented and validated with the `web-small` default profile
 - Linux debug and release are implemented; broader validation is still in progress
 - macOS debug and release are implemented; release ships the engine binary with a sidecar `.pck` (a signed `.app` bundle is a planned publish step)
-- iOS and Android build orchestration are still planned
+- iOS release is implemented on macOS hosts (see "iOS" below); there is no iOS debug build
+- Android build orchestration is still planned
+
+### iOS
+
+```text
+gdcpps build release ios
+gdcpps run release ios -- --my-game-flag value
+```
+
+`build release ios` compiles the engine for arm64 as a static library with the project's module
+(Metal driver, no Vulkan/MoltenVK), wraps it in Godot's Xcode template
+(`build/ios/release/godot_ios.zip`, MoltenVK references removed), writes an "iOS" preset into
+`project/export_presets.cfg` (template path, team, bundle id, icon, minimum iOS version;
+other keys are left alone), exports the Xcode project with the Godot editor (`GODOT_BIN`, `godot`
+on `PATH`, or `/Applications/Godot.app`) and builds a development-signed `.app` with
+`xcodebuild -allowProvisioningUpdates` (Xcode must be signed in to the team's Apple account).
+While exporting, the macOS debug GDExtension is loaded so the editor knows the game's classes;
+the preset excludes `bin/*`. `run release ios` installs the app on a paired device
+(`xcrun devicectl`) and launches it with the arguments after `--`.
+
+```yaml
+platforms:
+  ios:
+    export:
+      bundle_id: com.example.mygame   # required
+      team_id: ABCDE12345             # required
+      display_name: My Game           # optional, defaults to project.name
+      icon: path/to/icon.png          # 1024x1024; required unless project.godot sets an icon
+      min_ios_version: "15.0"         # optional; Xcode 26+ accepts 15.0 and later
+      device: <udid or name>          # optional, for run (or GDCPPS_IOS_DEVICE)
+```
+
+The project must import ETC2/ASTC textures
+(`rendering/textures/vram_compression/import_etc2_astc=true`).
 
 ### Render a Godot Profile
 
@@ -161,7 +195,8 @@ Current status:
 
 - `run debug` is implemented for windows, linux, and macos and requires `GODOT_BIN` or a Godot executable on `PATH`
 - `run release` is implemented for windows, linux, and macos and launches the packaged executable from `build/<platform>/release`
-- Web, iOS, and Android run helpers are still planned
+- `run release ios` installs and launches on a connected device
+- Web and Android run helpers are still planned
 
 ## Consumer Manifest
 

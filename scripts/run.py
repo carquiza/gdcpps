@@ -66,8 +66,15 @@ def run(project_dir: str, mode: str, platform: str, extra_args: list[str] | None
     project_name = str(manifest.get("project", {}).get("name", project_root.name))
     game_args = _game_args(extra_args)
 
+    if platform == "ios":
+        if mode != "release":
+            raise ValueError("iOS runs the release build only: `gdcpps run release ios`.")
+        import ios
+
+        return ios.run_release(project_root, manifest, game_args)
+
     if platform not in {"linux", "windows", "macos"}:
-        raise ValueError("`gdcpps run` currently supports the linux, windows, and macos platforms only.")
+        raise ValueError("`gdcpps run` currently supports the linux, windows, macos, and ios platforms only.")
 
     if mode == "debug":
         project_path = project_root / "project"
@@ -85,6 +92,14 @@ def run(project_dir: str, mode: str, platform: str, extra_args: list[str] | None
             raise FileNotFoundError(
                 f"No {missing_hint} found in {project_path / 'bin'}. Run `gdcpps build debug {platform} --project {project_root}` first."
             )
+
+        # A prior `release` build removes .godot/extension_list.cfg (release links the
+        # module into the engine and must not also load the GDExtension). Running the
+        # project directly only loads extensions listed there, so regenerate the debug
+        # runtime files to keep `run debug` self-healing regardless of the last build.
+        from build import ensure_project_runtime_files, project_module_name
+
+        ensure_project_runtime_files(project_root, project_module_name(manifest), debug_mode=True)
 
         cmd = [_resolve_godot_bin(), "--path", str(project_path)] + game_args
         print(f"Running debug project {project_name}: {' '.join(cmd)}")

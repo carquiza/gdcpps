@@ -11,7 +11,7 @@ This repository is the planned consumer-facing scaffold and build orchestration 
 
 See `docs/SPEC.md`, `docs/USAGE.md`, `docs/PLAN.md`, and `docs/HOOKS.md` for the current design direction.
 
-Implemented build targets: Windows, Linux, macOS, and Web (debug and release). iOS and Android are planned. macOS release builds ship the engine binary alongside a sidecar `.pck`; a signed `.app` bundle is a planned publish step.
+Implemented build targets: Windows, Linux, macOS, and Web (debug and release), and iOS (release, from macOS: a signed app installed on a device with `gdcpps run release ios`). Android is planned. macOS release builds ship the engine binary alongside a sidecar `.pck`; a signed `.app` bundle is a planned publish step.
 
 Current hook support is manifest-driven:
 

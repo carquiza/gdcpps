@@ -90,6 +90,45 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("pyyaml", out)
 
 
+class RunDebugSelfHealTests(unittest.TestCase):
+    """`run debug` must restore .godot/extension_list.cfg regardless of the last
+    build. A prior `release` build deletes it (release links the module into the
+    engine and must not also load the GDExtension), which otherwise leaves debug
+    runs unable to register the extension's classes."""
+
+    def _make_project(self, root: Path, module_name: str, platform: str) -> Path:
+        project = root / "proj"
+        (project).mkdir()
+        (project / "gdcpps.yaml").write_text(
+            f"project:\n  module_name: {module_name}\n", encoding="utf-8"
+        )
+        bin_dir = project / "project" / "bin"
+        bin_dir.mkdir(parents=True)
+        # Debug artifact present (as after `build debug`); only the runtime cfg is gone.
+        (bin_dir / f"lib{module_name}.{platform}.template_debug.universal.dylib").write_text(
+            "", encoding="utf-8"
+        )
+        return project
+
+    def test_regenerates_missing_extension_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = self._make_project(Path(tmp), "my_game", "macos")
+            extension_list = project / "project" / ".godot" / "extension_list.cfg"
+            self.assertFalse(extension_list.exists())
+
+            with mock.patch.object(run_cmd, "_resolve_godot_bin", return_value="godot"), \
+                    mock.patch.object(run_cmd.subprocess, "run") as run_mock:
+                rc = run_cmd.run(str(project), "debug", "macos")
+
+            self.assertEqual(rc, 0)
+            run_mock.assert_called_once()
+            self.assertTrue(extension_list.exists())
+            self.assertEqual(
+                extension_list.read_text(encoding="utf-8"),
+                "res://bin/my_game.gdextension\n",
+            )
+
+
 class ToolchainsTests(unittest.TestCase):
     def _make_fake_emsdk(self, root: Path) -> Path:
         emsdk = root / "emsdk"

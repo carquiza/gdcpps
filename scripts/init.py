@@ -197,19 +197,53 @@ def _gdcpp_header_text(module_name: str) -> str:
 
 #ifdef {upper_name}_GDEXTENSION
 
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
 using namespace godot;
 
 #elif defined({upper_name}_MODULE)
 
+#include "core/io/file_access.h"
+#include "core/io/resource_loader.h"
 #include "core/object/class_db.h"
 #include "scene/3d/node_3d.h"
 
 #else
 #error "Define {upper_name}_GDEXTENSION or {upper_name}_MODULE before including gdcpp.h"
 #endif
+
+// Cross-target shims for APIs that differ between godot-cpp (GDExtension) and
+// the engine (module): godot-cpp often exposes static class methods or
+// singleton instances where the engine uses differently named static methods.
+// Centralize the divergences here so game code calls one name on both targets,
+// and add more as you encounter them.
+namespace gdcpp {{
+
+// FileAccess existence: godot-cpp exposes a static FileAccess::file_exists();
+// the engine's file_exists() is a non-static virtual, so the static check is
+// FileAccess::exists().
+inline bool file_exists(const String &p_path) {{
+#ifdef {upper_name}_GDEXTENSION
+\treturn FileAccess::file_exists(p_path);
+#else
+\treturn FileAccess::exists(p_path);
+#endif
+}}
+
+// Resource loading: godot-cpp loads through the ResourceLoader singleton
+// instance; the engine's ResourceLoader::load() is static.
+inline Ref<Resource> load_resource(const String &p_path) {{
+#ifdef {upper_name}_GDEXTENSION
+\treturn ResourceLoader::get_singleton()->load(p_path);
+#else
+\treturn ResourceLoader::load(p_path);
+#endif
+}}
+
+}} // namespace gdcpp
 """
 
 

@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-10 · **Phase:** maintenance (build/run for client projects) · **Health:** One open defect in `run`
+**Updated:** 2026-10-12 · **Phase:** maintenance (build/run for client projects) · **Health:** One open defect in `run`
 
 ## Now / Next
 1. **Fix: `gdcpps run debug` forwards game arguments as Godot engine flags.** Found running
@@ -22,6 +22,12 @@
 Roadmap and phase checklist: `TODO.md`.
 
 ## Recently done
+- 2026-10-12 — **iOS release builds** (`scripts/ios.py`, `tests/test_ios.py`): `build release ios`
+  builds the arm64 engine library with the module (Metal, no MoltenVK), the Xcode template zip, an
+  "iOS" export preset from `platforms.ios.export`, exports with the editor, and signs a `.app` with
+  xcodebuild; `run release ios` installs and launches it with devicectl. Verified with asset-flip on an
+  iPhone 14 Pro (Xcode 27). Notes: Xcode 26+ needs min iOS 15.0 (preset default); full LTO makes the
+  final Xcode link slow (~20 min on an A18 Pro Mac); no iOS debug build.
 - (earlier) macOS build/run support and local source-tree deps sync (`f71d687`); `run` forwards
   arguments after `--` (`3cefc37`).
 

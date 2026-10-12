@@ -9,12 +9,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import ios
 import pack
 from profile_resolver import load_manifest, render_profile, resolve_flags
 from toolchains import emsdk_env
 
 
-SUPPORTED_PLATFORMS = {"linux", "macos", "windows", "web"}
+SUPPORTED_PLATFORMS = {"linux", "macos", "windows", "web", "ios"}
 SUPPORTED_MODES = {"debug", "release"}
 
 
@@ -27,7 +28,7 @@ def _load_deps_state(project_root: Path) -> dict:
     return json.loads(state_path.read_text(encoding="utf-8"))
 
 
-def _project_module_name(manifest: dict) -> str:
+def project_module_name(manifest: dict) -> str:
     project = manifest.get("project", {})
     module_name = project.get("module_name")
     if not module_name:
@@ -393,7 +394,7 @@ def configure_module(env, env_modules, project_root):
     return helper_path
 
 
-def _ensure_project_runtime_files(project_root: Path, module_name: str, debug_mode: bool) -> None:
+def ensure_project_runtime_files(project_root: Path, module_name: str, debug_mode: bool) -> None:
     godot_dir = project_root / "project" / ".godot"
     godot_dir.mkdir(parents=True, exist_ok=True)
     project_bin = project_root / "project" / "bin"
@@ -502,7 +503,7 @@ def _build_debug(project_root: Path, platform: str, deps_state: dict, module_nam
         env = _web_env()
     env = _with_git_safe_dirs(env, godot_cpp_dir)
 
-    _ensure_project_runtime_files(project_root, module_name, debug_mode=True)
+    ensure_project_runtime_files(project_root, module_name, debug_mode=True)
     _write_module_scsub_shim(project_root)
     _write_module_build_script(project_root, module_name, manifest, platform)
     sconstruct_path = _write_debug_sconstruct(project_root, godot_cpp_dir, module_name, platform)
@@ -543,6 +544,8 @@ def _copy_native_release_outputs(godot_dir: Path, destination: Path, platform: s
         sources = list(bin_dir.glob("godot.web.template_release*.wasm")) + list(
             bin_dir.glob("godot.web.template_release*.js")
         )
+    elif platform == "ios":
+        sources = list(bin_dir.glob("libgodot.ios.template_release*.a"))
     else:
         raise ValueError(f"Unsupported platform: {platform}")
 
@@ -616,7 +619,7 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
     godot_cpp_dir = Path(deps_state["dependencies"]["godot_cpp"]["path"])
     env = _with_git_safe_dirs(env, godot_dir, godot_cpp_dir)
 
-    _ensure_project_runtime_files(project_root, module_name, debug_mode=False)
+    ensure_project_runtime_files(project_root, module_name, debug_mode=False)
     _write_module_scsub_shim(project_root)
     _write_module_build_script(project_root, module_name, manifest, platform)
     profile_path = _render_release_profile(project_root, platform)
@@ -631,6 +634,8 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
         f"custom_modules={project_root / 'module'}",
         f"-j{_jobs()}",
     ]
+    if platform == "ios":
+        cmd.extend(ios.engine_build_args())
     _run(cmd, godot_dir, env=env)
 
     destination = _build_output_dir(project_root, platform, "release")
@@ -644,6 +649,8 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
         _pack_macos_release(project_root, destination)
     elif platform == "web":
         _pack_web_release(project_root, destination, project_name)
+    elif platform == "ios":
+        ios.package_release(project_root, manifest, godot_dir, destination)
 
     return destination
 
@@ -658,10 +665,15 @@ def run(project_dir: str, mode: str, platform: str) -> int:
 
     project_root = Path(project_dir).resolve()
     manifest = load_manifest(project_root)
-    module_name = _project_module_name(manifest)
+    module_name = project_module_name(manifest)
     project_name = str(manifest.get("project", {}).get("name", module_name))
     deps_state = _load_deps_state(project_root)
 
+    if mode == "debug" and platform == "ios":
+        raise ValueError(
+            "iOS has no debug (GDExtension) build: the engine is built with the module linked in. "
+            "Use `gdcpps build release ios`."
+        )
     if mode == "debug":
         destination = _build_debug(project_root, platform, deps_state, module_name)
     else:
