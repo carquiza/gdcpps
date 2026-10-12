@@ -22,6 +22,12 @@
 Roadmap and phase checklist: `TODO.md`.
 
 ## Recently done
+- 2026-10-12 — **Android release builds** (`scripts/android.py`, `tests/test_android.py`): arm64 engine
+  with the module (scons installs the pinned NDK), `gradlew generateGodotTemplates` for the template
+  APK, an "Android" preset (arm64 only, icon), editor export signed with Godot's debug keystore or a
+  manifest keystore (password via an env var, passed as `GODOT_ANDROID_KEYSTORE_RELEASE_*`); `run
+  release android` installs with adb and starts `GodotApp`. Preset editing moved to
+  `scripts/export_presets.py` (shared with iOS). Verified with asset-flip on a Galaxy S20 FE.
 - 2026-10-12 — **iOS release builds** (`scripts/ios.py`, `tests/test_ios.py`): `build release ios`
   builds the arm64 engine library with the module (Metal, no MoltenVK), the Xcode template zip, an
   "iOS" export preset from `platforms.ios.export`, exports with the editor, and signs a `.app` with

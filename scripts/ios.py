@@ -30,6 +30,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from export_presets import cfg_string, write_preset
+
 
 PRESET_NAME = "iOS"
 
@@ -106,109 +108,18 @@ def build_template(godot_dir: Path, library: Path, destination: Path) -> Path:
 # --- export preset ----------------------------------------------------------------------------
 
 
-def _cfg_string(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def _parse_cfg(text: str) -> list[tuple[str, list[str]]]:
-    """Sections in order as (header, body lines); lines before the first header go under ""."""
-    sections: list[tuple[str, list[str]]] = [("", [])]
-    for line in text.splitlines():
-        match = re.match(r"^\[(.+)\]\s*$", line)
-        if match:
-            sections.append((match.group(1), []))
-        else:
-            sections[-1][1].append(line)
-    return sections
-
-
-def _default_key(body: list[str], key: str, value: str) -> None:
-    if not any(line.startswith(key + "=") for line in body):
-        _set_key(body, key, value)
-
-
-def _set_key(body: list[str], key: str, value: str) -> None:
-    prefix = key + "="
-    for i, line in enumerate(body):
-        if line.startswith(prefix):
-            body[i] = prefix + value
-            return
-    while body and not body[-1].strip():
-        body.pop()
-    body.append(prefix + value)
-    body.append("")
-
-
 def write_export_preset(project_dir: Path, template: Path, export: dict, export_path: str, icon: Path | None) -> None:
     """Creates or updates the "iOS" preset; keys gdcpps doesn't manage are left as they are."""
-    cfg_path = project_dir / "export_presets.cfg"
-    sections = _parse_cfg(cfg_path.read_text(encoding="utf-8")) if cfg_path.exists() else [("", [])]
-
-    index = None
-    used = set()
-    for header, body in sections:
-        match = re.match(r"^preset\.(\d+)$", header)
-        if not match:
-            continue
-        used.add(int(match.group(1)))
-        if any(line.strip() == f"name={_cfg_string(PRESET_NAME)}" for line in body):
-            index = int(match.group(1))
-    if index is None:
-        index = max(used) + 1 if used else 0
-        sections.append((f"preset.{index}", []))
-        sections.append((f"preset.{index}.options", []))
-
-    def body_of(header: str) -> list[str]:
-        for name, body in sections:
-            if name == header:
-                return body
-        sections.append((header, []))
-        return sections[-1][1]
-
-    preset = body_of(f"preset.{index}")
-    for key, value in (
-        ("name", _cfg_string(PRESET_NAME)),
-        ("platform", _cfg_string("iOS")),
-        ("runnable", "true"),
-        ("export_filter", _cfg_string("all_resources")),
-        # The GDExtension is the desktop debug build; on iOS the module is linked into the engine.
-        ("exclude_filter", _cfg_string("bin/*")),
-        ("export_path", _cfg_string(export_path)),
-    ):
-        _set_key(preset, key, value)
-    # The editor reads these without defaults (it logs an error for each missing one).
-    for key, value in (
-        ("dedicated_server", "false"),
-        ("custom_features", '""'),
-        ("include_filter", '""'),
-        ("encryption_include_filters", '""'),
-        ("encryption_exclude_filters", '""'),
-        ("encrypt_pck", "false"),
-        ("encrypt_directory", "false"),
-        ("script_export_mode", "2"),
-    ):
-        _default_key(preset, key, value)
-
-    options = body_of(f"preset.{index}.options")
-    for key, value in (
-        ("custom_template/release", _cfg_string(str(template))),
-        ("application/app_store_team_id", _cfg_string(str(export["team_id"]))),
-        ("application/bundle_identifier", _cfg_string(str(export["bundle_id"]))),
-        ("application/export_project_only", "true"),
-        ("application/min_ios_version", _cfg_string(str(export["min_ios_version"]))),
-    ):
-        _set_key(options, key, value)
+    options = {
+        "custom_template/release": cfg_string(str(template)),
+        "application/app_store_team_id": cfg_string(str(export["team_id"])),
+        "application/bundle_identifier": cfg_string(str(export["bundle_id"])),
+        "application/export_project_only": "true",
+        "application/min_ios_version": cfg_string(str(export["min_ios_version"])),
+    }
     if icon is not None:
-        _set_key(options, "icons/icon_1024x1024", _cfg_string(str(icon)))
-
-    out: list[str] = []
-    for header, body in sections:
-        if header:
-            out.append(f"[{header}]")
-        out.extend(body)
-        if header and (not body or body[-1].strip()):
-            out.append("")
-    cfg_path.write_text("\n".join(out).strip("\n") + "\n", encoding="utf-8")
+        options["icons/icon_1024x1024"] = cfg_string(str(icon))
+    write_preset(project_dir, PRESET_NAME, "iOS", export_path, options)
 
 
 # --- export and app ---------------------------------------------------------------------------

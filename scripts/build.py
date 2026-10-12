@@ -9,13 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import android
 import ios
 import pack
 from profile_resolver import load_manifest, render_profile, resolve_flags
 from toolchains import emsdk_env
 
 
-SUPPORTED_PLATFORMS = {"linux", "macos", "windows", "web", "ios"}
+SUPPORTED_PLATFORMS = {"linux", "macos", "windows", "web", "ios", "android"}
 SUPPORTED_MODES = {"debug", "release"}
 
 
@@ -546,6 +547,9 @@ def _copy_native_release_outputs(godot_dir: Path, destination: Path, platform: s
         )
     elif platform == "ios":
         sources = list(bin_dir.glob("libgodot.ios.template_release*.a"))
+    elif platform == "android":
+        # scons puts the engine library into the Java project; gradle makes the template APK.
+        sources = sorted((godot_dir / "platform" / "android" / "java" / "lib" / "libs" / "release").glob("*/libgodot_android.so"))
     else:
         raise ValueError(f"Unsupported platform: {platform}")
 
@@ -636,6 +640,8 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
     ]
     if platform == "ios":
         cmd.extend(ios.engine_build_args())
+    elif platform == "android":
+        cmd.extend(android.engine_build_args())
     _run(cmd, godot_dir, env=env)
 
     destination = _build_output_dir(project_root, platform, "release")
@@ -651,6 +657,8 @@ def _build_release(project_root: Path, platform: str, deps_state: dict, module_n
         _pack_web_release(project_root, destination, project_name)
     elif platform == "ios":
         ios.package_release(project_root, manifest, godot_dir, destination)
+    elif platform == "android":
+        android.package_release(project_root, manifest, godot_dir, destination)
 
     return destination
 
@@ -669,10 +677,10 @@ def run(project_dir: str, mode: str, platform: str) -> int:
     project_name = str(manifest.get("project", {}).get("name", module_name))
     deps_state = _load_deps_state(project_root)
 
-    if mode == "debug" and platform == "ios":
+    if mode == "debug" and platform in ("ios", "android"):
         raise ValueError(
-            "iOS has no debug (GDExtension) build: the engine is built with the module linked in. "
-            "Use `gdcpps build release ios`."
+            f"{platform} has no debug (GDExtension) build: the engine is built with the module linked in. "
+            f"Use `gdcpps build release {platform}`."
         )
     if mode == "debug":
         destination = _build_debug(project_root, platform, deps_state, module_name)

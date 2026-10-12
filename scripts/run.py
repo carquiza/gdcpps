@@ -72,9 +72,15 @@ def run(project_dir: str, mode: str, platform: str, extra_args: list[str] | None
         import ios
 
         return ios.run_release(project_root, manifest, game_args)
+    if platform == "android":
+        if mode != "release":
+            raise ValueError("Android runs the release build only: `gdcpps run release android`.")
+        import android
+
+        return android.run_release(project_root, manifest, game_args)
 
     if platform not in {"linux", "windows", "macos"}:
-        raise ValueError("`gdcpps run` currently supports the linux, windows, macos, and ios platforms only.")
+        raise ValueError("`gdcpps run` currently supports the linux, windows, macos, ios, and android platforms only.")
 
     if mode == "debug":
         project_path = project_root / "project"

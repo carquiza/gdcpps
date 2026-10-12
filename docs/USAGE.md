@@ -2,7 +2,7 @@
 
 ## Status
 
-This document describes the current `gdcpps` workflow. `init`, `deps sync`, `render-profile`, `doctor`, and the Windows/Linux/macOS/Web `build` paths are implemented in an early but usable form, plus iOS release builds on macOS. Android is still planned.
+This document describes the current `gdcpps` workflow. `init`, `deps sync`, `render-profile`, `doctor`, and the Windows/Linux/macOS/Web `build` paths are implemented in an early but usable form, plus iOS (macOS hosts) and Android release builds.
 
 ## Intended Workflow
 
@@ -126,7 +126,7 @@ Current status:
 - Linux debug and release are implemented; broader validation is still in progress
 - macOS debug and release are implemented; release ships the engine binary with a sidecar `.pck` (a signed `.app` bundle is a planned publish step)
 - iOS release is implemented on macOS hosts (see "iOS" below); there is no iOS debug build
-- Android build orchestration is still planned
+- Android release is implemented (see "Android" below); there is no Android debug build
 
 ### iOS
 
@@ -160,6 +160,35 @@ platforms:
 
 The project must import ETC2/ASTC textures
 (`rendering/textures/vram_compression/import_etc2_astc=true`).
+
+### Android
+
+```text
+gdcpps build release android
+gdcpps run release android -- --my-game-flag value
+```
+
+`build release android` compiles the engine for arm64 with the project's module (scons installs
+the NDK version Godot pins through `sdkmanager` if it is missing), builds Godot's release template
+APK with gradle (`generateGodotTemplates`), writes an "Android" preset (template, package, name,
+arm64 only, launcher icon) and exports a signed APK with the Godot editor. Signing defaults to
+Godot's debug keystore; a release keystore comes from the manifest, its password from an
+environment variable, and reaches the editor through `GODOT_ANDROID_KEYSTORE_RELEASE_*` so it never
+lands in the preset. `run release android` installs with adb and starts `com.godot.game.GodotApp`
+(arguments after `--` go in the `command_line_params` extra). Needs `ANDROID_HOME` and a JDK 17.
+
+```yaml
+platforms:
+  android:
+    export:
+      package: com.example.mygame     # required
+      display_name: My Game           # optional, defaults to project.name
+      icon: path/to/icon.png          # optional launcher icon
+      keystore: path/to/release.jks   # optional; default: Godot's debug keystore
+      keystore_user: alias
+      keystore_password_env: MYGAME_KEYSTORE_PASSWORD
+      device: <adb serial>            # optional, for run (or GDCPPS_ANDROID_DEVICE)
+```
 
 ### Render a Godot Profile
 
@@ -196,7 +225,8 @@ Current status:
 - `run debug` is implemented for windows, linux, and macos and requires `GODOT_BIN` or a Godot executable on `PATH`
 - `run release` is implemented for windows, linux, and macos and launches the packaged executable from `build/<platform>/release`
 - `run release ios` installs and launches on a connected device
-- Web and Android run helpers are still planned
+- `run release android` installs and launches with adb
+- The Web run helper is still planned
 
 ## Consumer Manifest
 
