@@ -13,8 +13,12 @@ PACK_HEADER_MAGIC = 0x43504447
 PACK_FORMAT_VERSION = 3
 PACK_ALIGNMENT = 64
 PACK_REL_FILEBASE = 1 << 1
+ALLOWED_PROJECT_DATA_DIRS = {
+    ".godot/imported",
+}
 ALLOWED_PROJECT_DATA_FILES = {
     ".godot/global_script_class_cache.cfg",
+    ".godot/uid_cache.bin",
 }
 IGNORED_PACK_FILES = {
     "gdcpp_log.txt",
@@ -47,18 +51,22 @@ def collect_files(project_dir: str) -> list[tuple[str, str]]:
         dirs[:] = [directory for directory in dirs if directory != "bin"]
 
         if rel_root == ".godot":
-            dirs[:] = []
+            dirs[:] = [d for d in dirs if ".godot/" + d in ALLOWED_PROJECT_DATA_DIRS]
         elif rel_root.startswith(".godot/"):
-            dirs[:] = []
-            continue
+            in_allowed = any(rel_root == d or rel_root.startswith(d + "/") for d in ALLOWED_PROJECT_DATA_DIRS)
+            if not in_allowed:
+                dirs[:] = []
+                continue
 
         for fname in filenames:
             full_path = os.path.join(root, fname)
             rel_path = os.path.relpath(full_path, project_dir).replace("\\", "/")
             if fname in IGNORED_PACK_FILES:
                 continue
-            if rel_path.startswith(".godot/") and rel_path not in ALLOWED_PROJECT_DATA_FILES:
-                continue
+            if rel_path.startswith(".godot/"):
+                in_allowed_dir = any(rel_path.startswith(d + "/") for d in ALLOWED_PROJECT_DATA_DIRS)
+                if not in_allowed_dir and rel_path not in ALLOWED_PROJECT_DATA_FILES:
+                    continue
             files.append((rel_path, full_path))
     return sorted(files)
 
